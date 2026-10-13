@@ -238,6 +238,9 @@ table td strong { color: #f2f4f8; }
 .lead-details dt { color: #92a0b5; font-size: 9px; }
 .lead-details dd { overflow-wrap: anywhere; margin: 0; color: #dde4ee; font-size: 9px; }
 .directory-comment { min-width: 150px; max-width: 250px; white-space: normal; }
+.directory-lead { display: grid; gap: 4px; min-width: 120px; }
+.directory-lead strong { color: #f3f5f9; }
+.directory-lead span { color: #ff6b85; font-size: 9px; }
 .directory-comment>span { display: flex; align-items: center; gap: 5px; }
 .directory-comment p { display: -webkit-box; overflow: hidden; margin: 5px 0 0; color: #aebbd0; font-size: 9px; line-height: 1.45; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .directory-comment .forecast-comment-button { display: block; margin-top: 5px; }
