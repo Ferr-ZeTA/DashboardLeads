@@ -52,7 +52,7 @@ function DashboardContent() {
           {loading && <span className="refreshing-label"><RefreshCw size={12} className="spin" /> Actualizando datos</span>}
         </div>}
         {!error && !loading && !leads.length && <div className="data-empty-note"><AlertCircle size={15} />La API respondió sin leads. Revisa el endpoint y el formato de datos.</div>}
-        <footer className="page-footer"><span>© 2026 RED · Dashboard comercial</span><span><i /> Actualización en tiempo real al consultar</span></footer>
+        <footer className="page-footer"><span>© 2026 RED · Dashboard comercial</span><span><i /> API: actualización automática cada 5 minutos y al volver a la pestaña</span></footer>
       </div>
     </main>
   </div>

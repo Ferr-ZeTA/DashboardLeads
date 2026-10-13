@@ -33,6 +33,24 @@ export function buildStageFunnel(leads) {
   })
 }
 
+export function reportedRadioCount(texts) {
+  const patterns = [
+    /\b(\d{1,3})\s*(?:unidades?\s+de\s+)?radios?\b/gi,
+    /\bradios?\s*(?:x|:|de|por)?\s*(\d{1,3})\b/gi,
+  ]
+  const quantities = []
+  for (const text of texts) {
+    for (const pattern of patterns) {
+      pattern.lastIndex = 0
+      for (const match of text.matchAll(pattern)) {
+        const quantity = Number(match[1])
+        if (Number.isInteger(quantity) && quantity > 0 && quantity <= 999) quantities.push(quantity)
+      }
+    }
+  }
+  return quantities.length ? Math.max(...quantities) : undefined
+}
+
 export function resumenBase(leads, filters) {
   return leads.filter((lead) => {
     if (filters.filterEjecutivo && lead.asesor !== filters.filterEjecutivo) return false
@@ -134,6 +152,14 @@ export function parseLead(value, index) {
   if (value.cantidadEquipos != null && (!Number.isInteger(value.cantidadEquipos) || value.cantidadEquipos < 1 || value.cantidadEquipos > 999)) {
     throw new Error(`El campo cantidadEquipos del lead ${id} debe ser un entero entre 1 y 999.`)
   }
+  if (value.cantidadEquiposEnComentario != null
+    && (!Number.isInteger(value.cantidadEquiposEnComentario) || value.cantidadEquiposEnComentario < 1 || value.cantidadEquiposEnComentario > 999)) {
+    throw new Error(`El campo cantidadEquiposEnComentario del lead ${id} debe ser un entero entre 1 y 999.`)
+  }
+  if (value.radiosVendidosReportadas != null
+    && (!Number.isInteger(value.radiosVendidosReportadas) || value.radiosVendidosReportadas < 1 || value.radiosVendidosReportadas > 999)) {
+    throw new Error(`El campo radiosVendidosReportadas del lead ${id} debe ser un entero entre 1 y 999.`)
+  }
 
   const optionalBoolean = (field) => {
     const candidate = value[field]
@@ -184,6 +210,8 @@ export function parseLead(value, index) {
     fcExcluir: optionalBoolean('fcExcluir'),
     fcIntentar: optionalBoolean('fcIntentar'),
     cantidadEquipos: value.cantidadEquipos,
+    cantidadEquiposEnComentario: value.cantidadEquiposEnComentario,
+    radiosVendidosReportadas: value.radiosVendidosReportadas,
     producto: value.producto,
     clientId: value.clientId?.trim() || undefined,
     clientName: value.clientName?.trim() || undefined,
@@ -242,6 +270,8 @@ function lossReason(category) {
     .normalize('NFD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
+    .replace(/[_-]+/g, ' ')
+    .trim()
 
   if (/no respond|no contesta|no responde|sin contacto|no esta|no estaba/.test(normalized)) return 'no_respondio'
   if (/proveedor|tomaron otro/.test(normalized)) return 'proveedor'
@@ -258,7 +288,21 @@ function lossReason(category) {
   if (/no califica|no aplica|no valida|equivocado|numero extrano/.test(normalized)) return 'no_valida'
   if (/fraude|estafa/.test(normalized)) return 'fraude'
   if (/modalidad/.test(normalized)) return 'modalidad_no_compatible'
+  if (/^otro$/.test(normalized)) return 'otro'
   return 'otro'
+}
+
+function meetingLossReason(row) {
+  const closureReason = row.stage_feedback_json?.['6']?.razon_cierre
+  if (typeof closureReason === 'string') {
+    const separator = closureReason.indexOf(':')
+    if (separator > 0) {
+      const prefix = closureReason.slice(0, separator).trim()
+      const mappedPrefix = lossReason(prefix)
+      if (mappedPrefix !== 'otro' || /^otro$/i.test(prefix)) return mappedPrefix
+    }
+  }
+  return lossReason(row.stage_feedback_json?.['6']?.motivo_no_contacto)
 }
 
 function getFeedbackTexts(row, currentStageOnly = false) {
@@ -427,7 +471,7 @@ export function mapMeetingLead(row, index) {
     maxEtapaConocida: false,
     calificado: typeof row.calificado === 'boolean' ? row.calificado : false,
     calificacionConocida: typeof row.calificado === 'boolean',
-    motivo: estado === 'perdido' ? lossReason(row.categoria_cierre) : undefined,
+    motivo: estado === 'perdido' ? meetingLossReason(row) : undefined,
     proximaGestion: directDate ?? management?.date,
     fechaSeguimiento: normalizeDateOnly(row.stage_feedback_json?.['5']?.fecha_seguimiento),
     comentarioGestion: directComment || management?.comment,
@@ -436,9 +480,9 @@ export function mapMeetingLead(row, index) {
     apiStage: Number(row.opportunity_stage),
     apiStageLabel,
     cantidadEquipos: structuredEquipmentCount(row, true)
-      ?? parseEquipmentCount(currentStageTexts)
-      ?? structuredEquipmentCount(row)
-      ?? parseEquipmentCount(feedbackTexts),
+      ?? structuredEquipmentCount(row),
+    cantidadEquiposEnComentario: parseEquipmentCount(currentStageTexts),
+    radiosVendidosReportadas: estado === 'ganado' ? reportedRadioCount(feedbackTexts) : undefined,
     clientId: typeof row.client_id === 'string' ? row.client_id : undefined,
     clientName: typeof row.client_name === 'string' ? row.client_name : undefined,
     producto: estado === 'ganado' ? row.rubro || undefined : undefined,
@@ -467,5 +511,22 @@ export function stateLabel(state) {
 }
 
 export function lossReasonLabel(reason) {
-  return reason.replaceAll('_', ' ').replace(/^\w/, (letter) => letter.toUpperCase())
+  return {
+    no_respondio: 'No respondió',
+    proveedor: 'Proveedor',
+    precio: 'Precio',
+    presupuesto: 'Presupuesto',
+    no_interesado: 'No interesado',
+    ya_no_necesita: 'Ya no lo necesita',
+    incompatibilidad: 'Incompatibilidad',
+    cobertura: 'Cobertura',
+    condiciones_comerciales: 'Condiciones comerciales',
+    plazo_contractual: 'Plazo contractual',
+    decision_interna: 'Decisión interna',
+    no_valida: 'No válido',
+    fraude: 'Fraude',
+    modalidad_no_compatible: 'Modalidad no compatible',
+    otro: 'Otro',
+    sin_motivo: 'Sin categoría informativa',
+  }[reason] ?? reason.replaceAll('_', ' ').replace(/^\w/, (letter) => letter.toUpperCase())
 }

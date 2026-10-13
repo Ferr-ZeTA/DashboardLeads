@@ -104,6 +104,30 @@ body, .dashboard-shell { background: #080d18; color: #e5e7eb; }
 .overdue-callout strong { color: #eff2f7; }
 .overdue-callout p, .summary-footnote { color: #9aa6b8; }
 .overdue-symbol, .overdue-state { background: #ffffff0d; }
+.overdue-panel { overflow: hidden; }
+.overdue-callout { justify-content: flex-start; }
+.overdue-callout>div { flex: 1; }
+.overdue-state { margin-left: auto; padding: 7px 10px; border-radius: 7px; font-size: 9px; font-weight: 650; white-space: nowrap; }
+.overdue-details,.overdue-missing-details { margin-top: 12px; border: 1px solid #29364a; border-radius: 9px; background: #111b2a; }
+.overdue-details>summary,.overdue-missing-details>summary { display: flex; min-height: 45px; align-items: center; gap: 9px; padding: 10px 12px; color: #d7deea; cursor: pointer; font-size: 10px; list-style: none; }
+.overdue-details>summary::-webkit-details-marker,.overdue-missing-details>summary::-webkit-details-marker { display: none; }
+.overdue-details>summary>span,.overdue-missing-details>summary>span { display: flex; align-items: center; gap: 7px; flex: 1; }
+.overdue-details>summary>span svg { color: #fb7185; }
+.overdue-details>summary>strong { padding: 4px 7px; border-radius: 6px; background: #321b26; color: #fb7185; font-size: 9px; }
+.overdue-details>summary>svg:last-child,.overdue-missing-details>summary>svg { flex: 0 0 auto; color: #94a3b8; transition: transform .18s ease; }
+.overdue-details[open]>summary>svg:last-child,.overdue-missing-details[open]>summary>svg { transform: rotate(180deg); }
+.overdue-table { max-height: 360px; margin: 0 10px 10px; border: 1px solid #29364a; border-radius: 7px; }
+.overdue-table table { min-width: 920px; }
+.overdue-table th { position: sticky; top: 0; z-index: 1; }
+.overdue-table .overdue-date { color: #fb7185; font-weight: 650; }
+.overdue-table .overdue-comment { min-width: 230px; max-width: 350px; white-space: normal; line-height: 1.5; }
+.overdue-data-summary { display: grid; gap: 4px; margin-top: 12px; }
+.overdue-data-summary>div { display: flex; align-items: center; gap: 7px; color: #98a5b8; font-size: 9px; }
+.overdue-data-summary>div svg { flex: 0 0 auto; color: #7dd3fc; }
+.overdue-data-summary>div strong { color: #d7deea; }
+.overdue-missing-details { margin-top: 4px; }
+.overdue-missing-details>summary { color: #aab7c9; font-size: 9px; }
+.overdue-missing-details>p { margin: 0 12px 9px; color: #8998ad; font-size: 9px; line-height: 1.5; }
 .table-scroll { border-color: #202c40; }
 table th { background: #151f30; color: #aab5c7; }
 table td { border-color: #202b3d; color: #d7deea; }
@@ -230,6 +254,12 @@ button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-v
   .dashboard-shell.sidebar-collapsed .sidebar { transform: translateX(-100%); }
   .dashboard-shell.sidebar-collapsed .main-panel { margin-left: 0; }
   .summary-grid { grid-template-columns: 1fr; }
+  .overdue-callout { align-items: flex-start; flex-wrap: wrap; padding: 13px; }
+  .overdue-callout>div { min-width: 150px; }
+  .overdue-state { margin-left: 51px; }
+  .overdue-details>summary { flex-wrap: wrap; }
+  .overdue-details>summary>span { min-width: 180px; }
+  .overdue-table { max-height: 320px; margin-right: 6px; margin-left: 6px; }
   .results-kpis { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; }
   .result-kpi { padding: 12px; }
   .result-kpi>strong { font-size: 21px; }
@@ -280,13 +310,6 @@ button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-v
 .equipment-summary-button small { color: #8998ad; font-size: 9px; }
 .equipment-summary-button .equipment-summary-value { color: #34d399; font-size: 24px; }
 .equipment-unit-details[open] .equipment-summary-button>svg { transform: rotate(180deg); }
-.summary-open-total { display: flex; align-items: baseline; gap: 10px; margin-top: 2px; }
-.summary-open-total strong { color: #f3f6fb; font-size: 28px; letter-spacing: -.6px; }
-.summary-open-total span { color: #98a5b8; font-size: 10px; }
-.summary-open-breakdown { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 9px; margin-top: 10px; }
-.summary-open-breakdown>div { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 11px; border: 1px solid #29364a; border-radius: 8px; background: #111b2a; }
-.summary-open-breakdown span { color: #aab7c9; font-size: 10px; }
-.summary-open-breakdown strong { color: #f3f6fb; font-size: 13px; }
 .forecast-data-note { display: flex; align-items: flex-start; gap: 8px; margin: 14px 0 8px; padding: 10px 12px; border: 1px solid #344156; border-radius: 8px; background: #111b2a; color: #aab7c9; font-size: 10px; line-height: 1.5; }
 .forecast-data-note svg { flex: 0 0 auto; color: #fbbf24; }
 .forecast-conflicts { margin: 8px 0 12px; color: #fda4af; font-size: 10px; }
@@ -347,6 +370,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-v
 .forecast-table-lead small,.forecast-manager-subtitle { margin-top: 4px; color: #8997ad; font-size: 9px; }
 .forecast-table-lead .forecast-tag { display: inline-flex; margin-top: 6px; }
 .forecast-quantity { color: #f3f5fa; font-size: 15px; font-weight: 700; text-align: center; }
+.forecast-quantity small { display: block; margin-top: 4px; color: #8997ad; font-size: 8px; font-weight: 500; line-height: 1.35; }
 .forecast-table-date { display: grid; gap: 5px; min-width: 135px; }
 .forecast-table-date span { color: #e1e7f0; font-size: 10px; }
 .forecast-table-date .forecast-date-input { min-width: 135px; border-color: #35435a; background: #0c1422; color: #e2e8f0; }
@@ -372,7 +396,6 @@ button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-v
   .stage-funnel-heading { align-items: flex-start; flex-direction: column; gap: 3px; }
   .stage-funnel-stats { gap: 5px 10px; }
   .pipeline-summary-grid,.equipment-metrics { grid-template-columns: 1fr; }
-  .summary-open-breakdown { grid-template-columns: 1fr; }
   .stage-lead-details { margin-left: 0; }
   .stage-lead-details .table-scroll { max-height: 240px; }
   .stage-funnel-shape { min-height: 58px; grid-template-columns: 25px minmax(0,1fr) auto; gap: 7px; padding-right: 9%; padding-left: 9%; }

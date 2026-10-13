@@ -39,7 +39,7 @@ function hasConflictingOutcome(lead) {
 }
 
 function isAutomaticCandidate(lead) {
-  return lead.estado === 'activo'
+  return OPEN_STATES.includes(lead.estado)
     && !hasConflictingOutcome(lead)
     && lead.apiStage === 5
 }
@@ -47,7 +47,7 @@ function isAutomaticCandidate(lead) {
 function formatReason(lead, override) {
   if (override?.included === true && !isAutomaticCandidate(lead)) return 'Inclusión manual'
   if (override?.included === false) return 'Excluido manualmente'
-  return 'Seguimiento · activo en API'
+  return 'Etapa Seguimiento · abierto'
 }
 
 function estimatedDate(override) {
@@ -73,6 +73,16 @@ function commentPreview(lead, limit = 115) {
 
 function customerId(lead) {
   return lead.clientId || `#${lead.id}`
+}
+
+function equipmentQuantity(lead) {
+  if (Number.isInteger(lead.cantidadEquipos)) {
+    return { quantity: lead.cantidadEquipos, source: 'Campo estructurado del API' }
+  }
+  if (Number.isInteger(lead.cantidadEquiposEnComentario)) {
+    return { quantity: lead.cantidadEquiposEnComentario, source: 'Comentario de etapa actual' }
+  }
+  return { quantity: 'Sin dato', source: '' }
 }
 
 export function ForecastView({ leads }) {
@@ -137,20 +147,21 @@ export function ForecastView({ leads }) {
   }
 
   return <div className="view-stack">
-    <SectionHeading title="Forecast de cierres" subtitle="Oportunidades en etapa Seguimiento y estado Activo, más las que incluyas manualmente." />
+    <SectionHeading title="Forecast de cierres" subtitle="Oportunidades abiertas en etapa Seguimiento (API), más las que incluyas manualmente." />
     {storedState.error && <div className="reconciliation-alert" role="alert"><CircleAlert size={18} /><div><strong>Problema con los datos manuales</strong><p>{storedState.error}</p></div></div>}
     <Card>
-      <div className="forecast-intro"><div className="forecast-icon"><CalendarClock size={21} /></div><div><strong>{forecast.length.toLocaleString('es-SV')} {forecast.length === 1 ? 'oportunidad próxima a cierre' : 'oportunidades próximas a cierre'}</strong><p>La selección automática requiere etapa API Seguimiento (5) y estado Activo (`en_proceso`). Puedes incluir o excluir leads manualmente, salvo registros con un resultado cerrado contradictorio.</p></div><CircleDollarSign className="forecast-decoration" size={32} /></div>
-      <div className="forecast-data-note"><CircleAlert size={16} /><span>Prospektia no devuelve fecha estimada de cierre: ingrésala manualmente. La fecha de próxima gestión y la fecha de reunión se muestran aparte y nunca se usan como fecha de cierre. Sin cantidad explícita se muestra “Sin dato”.</span></div>
+      <div className="forecast-intro"><div className="forecast-icon"><CalendarClock size={21} /></div><div><strong>{forecast.length.toLocaleString('es-SV')} {forecast.length === 1 ? 'oportunidad próxima a cierre' : 'oportunidades próximas a cierre'}</strong><p>La selección automática requiere etapa API Seguimiento (5) y un estado abierto (Activo, En espera o Detenido). Puedes incluir o excluir leads manualmente, salvo registros con un resultado cerrado contradictorio.</p></div><CircleDollarSign className="forecast-decoration" size={32} /></div>
+      <div className="forecast-data-note"><CircleAlert size={16} /><span>La cantidad del campo estructurado del API y la mención en el comentario de la etapa actual se muestran por separado; no se mezclan comentarios históricos ni se presentan como radios vendidas. Prospektia no devuelve fecha estimada de cierre: ingrésala manualmente. Las fechas de próxima gestión y reunión nunca se usan como fecha de cierre.</span></div>
       {conflicts > 0 && <p className="forecast-conflicts">{conflicts.toLocaleString('es-SV')} registros abiertos tienen resultado de venta cerrado y están excluidos para evitar inflar el forecast.</p>}
 
-      <TableWrap className="forecast-table"><thead><tr><th>Lead</th><th>ID</th><th>Equipos</th><th>Fecha estimada de cierre</th><th>Próxima gestión (API)</th><th>Seguimiento reportado</th><th>Comentario</th><th>Acción</th></tr></thead><tbody>{forecast.length ? forecast.map((lead) => {
+      <TableWrap className="forecast-table"><thead><tr><th>Lead</th><th>ID</th><th>Equipos reportados y fuente</th><th>Fecha estimada de cierre</th><th>Próxima gestión (API)</th><th>Seguimiento reportado</th><th>Comentario</th><th>Acción</th></tr></thead><tbody>{forecast.length ? forecast.map((lead) => {
         const override = overrides[lead.id]
         const manuallyIncluded = override?.included === true && !isAutomaticCandidate(lead)
+        const equipment = equipmentQuantity(lead)
         return <tr key={lead.id}>
           <td className="forecast-table-lead"><strong>{lead.clientName || 'Sin nombre en API'}</strong><small>{lead.asesor} · {lead.apiStageLabel || stageLabel(lead.etapa)}</small><span className={`forecast-tag ${manuallyIncluded ? 'forecast-tag-manual' : ''}`}>{formatReason(lead, override)}</span></td>
           <td>{customerId(lead)}</td>
-          <td className="forecast-quantity">{lead.cantidadEquipos ?? 'Sin dato'}</td>
+          <td className="forecast-quantity">{equipment.quantity}{equipment.source && <small>{equipment.source}</small>}</td>
           <td><label className="forecast-table-date"><span>{estimatedDate(override) ? formatDate(`${estimatedDate(override)}T12:00:00`) : 'Sin estimar'}</span><input className="forecast-date-input" type="date" aria-label={`Fecha estimada de cierre para lead ${lead.id}`} value={estimatedDate(override)} onChange={(event) => updateLead(lead.id, { estimatedCloseDate: event.target.value || undefined })} /></label></td>
           <td>{formatDate(lead.proximaGestion)}</td>
           <td>{formatDate(lead.fechaSeguimiento)}</td>
@@ -167,10 +178,11 @@ export function ForecastView({ leads }) {
       {query.trim() && (matchingLeads.length ? <TableWrap><thead><tr><th>Lead</th><th>ID</th><th>Equipos</th><th>Etapa / estado</th><th>Fecha estimada</th><th>Forecast</th><th>Acción</th></tr></thead><tbody>{matchingLeads.map((lead) => {
         const override = overrides[lead.id]
         const included = override?.included === true || (override?.included !== false && isAutomaticCandidate(lead))
+        const equipment = equipmentQuantity(lead)
         return <tr key={lead.id}>
           <td><strong>{lead.clientName || 'Sin nombre en API'}</strong><small className="forecast-manager-subtitle">{lead.asesor}</small></td>
           <td>{customerId(lead)}</td>
-          <td className="forecast-quantity">{lead.cantidadEquipos ?? 'Sin dato'}</td>
+          <td className="forecast-quantity">{equipment.quantity}{equipment.source && <small>{equipment.source}</small>}</td>
           <td>{lead.apiStageLabel || stageLabel(lead.etapa)}</td>
           <td><label className="forecast-table-date"><span>{estimatedDate(override) ? formatDate(`${estimatedDate(override)}T12:00:00`) : 'Sin estimar'}</span><input className="forecast-date-input" type="date" aria-label={`Fecha estimada de cierre para lead ${lead.id}`} value={estimatedDate(override)} onChange={(event) => updateLead(lead.id, { estimatedCloseDate: event.target.value || undefined })} /></label></td>
           <td>{included ? <span className="forecast-tag">Incluido</span> : <span className="forecast-tag forecast-tag-muted">Fuera del forecast</span>}</td>

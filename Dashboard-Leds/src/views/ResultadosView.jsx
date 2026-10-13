@@ -13,8 +13,8 @@ function ResultKpi({ label, value, detail, icon: Icon, tone }) {
 export function ResultadosView({ leads, metrics }) {
   const lost = leads.filter((lead) => lead.estado === 'perdido')
   const won = leads.filter((lead) => lead.estado === 'ganado')
-  const unitRows = won.filter((lead) => Number.isInteger(lead.cantidadEquipos) && lead.cantidadEquipos > 0)
-  const wonUnits = unitRows.reduce((sum, lead) => sum + lead.cantidadEquipos, 0)
+  const unitRows = won.filter((lead) => Number.isInteger(lead.radiosVendidosReportadas) && lead.radiosVendidosReportadas > 0)
+  const wonUnits = unitRows.reduce((sum, lead) => sum + lead.radiosVendidosReportadas, 0)
   const reasonCounts = new Map()
 
   for (const lead of lost) {
@@ -29,9 +29,10 @@ export function ResultadosView({ leads, metrics }) {
   const classifiedCount = lost.length - reviewCount
   const otherReasonCategories = new Map()
   for (const lead of lost.filter((item) => item.motivo === 'otro')) {
-    const rawReason = typeof lead.raw?.categoria_cierre === 'string' && lead.raw.categoria_cierre.trim()
-      ? lead.raw.categoria_cierre.trim()
-      : 'Sin categoría informativa'
+    const closureReason = lead.raw?.stage_feedback_json?.['6']?.razon_cierre
+    const structuredReason = lead.raw?.stage_feedback_json?.['6']?.motivo_no_contacto
+    const rawReason = [structuredReason, closureReason].find((value) => typeof value === 'string' && value.trim())?.trim()
+      || 'Sin motivo de cierre informado'
     const categoryLeads = otherReasonCategories.get(rawReason) ?? []
     categoryLeads.push(lead)
     otherReasonCategories.set(rawReason, categoryLeads)
@@ -47,14 +48,14 @@ export function ResultadosView({ leads, metrics }) {
   return <div className="view-stack results-view">
     <SectionHeading
       title="Resultados comerciales"
-      subtitle="Cierres, texto original de las razones de pérdida y unidades documentadas en leads ganados."
+      subtitle="Cierres, motivos originales de pérdida y radios mencionadas en comentarios de leads ganados."
     />
 
     <div className="results-purpose">
       <span className="results-purpose-icon"><BarChart3 size={18} /></span>
       <div>
         <strong>¿Para qué sirve esta vista?</strong>
-        <p>Resume los cierres de los leads incluidos en los filtros. La cantidad ganada usa el mismo campo unificado que muestra Forecast; solo suma leads ganados con una cantidad explícita.</p>
+        <p>Resume los cierres incluidos en los filtros. Las unidades ganadas salen de radios mencionadas en comentarios; Forecast muestra aparte la cantidad de equipos propuesta o reportada por lead.</p>
       </div>
       <span className="results-filter-note">Respeta los filtros de ejecutivo, país y mes de próxima gestión</span>
     </div>
@@ -79,7 +80,7 @@ export function ResultadosView({ leads, metrics }) {
       <Card className="results-panel">
         <SectionHeading
           title="¿Por qué se pierden?"
-          subtitle="Motivos homologados desde el campo categoria_cierre que entrega Prospektia."
+          subtitle="Motivos extraídos de los campos de cierre que entrega Prospektia."
         />
         <div className="results-explainer">
           <CircleHelp size={15} />
@@ -122,22 +123,22 @@ export function ResultadosView({ leads, metrics }) {
 
       <Card className="results-panel">
         <SectionHeading
-          title="Unidades ganadas"
-          subtitle="Suma la cantidad explícita registrada en leads con estado Ganado."
+          title="Radios reportadas en leads ganados"
+          subtitle="Menciones explícitas en comentarios; Prospektia no entrega un total estructurado de radios vendidas."
         />
         <div className="results-explainer results-explainer-green">
           <Tag size={15} />
-          <p>Se usa `cantidadEquipos`, la misma extracción conservadora que aparece en Forecast: primero campos estructurados del API y luego menciones explícitas en comentarios. Los leads sin cantidad no se suman.</p>
+          <p>Esta cifra suma menciones explícitas de radios en los comentarios recibidos, no confirma ventas ni debe cuadrarse con las cantidades estructuradas de propuesta. Esas fuentes y etapas describen datos distintos.</p>
         </div>
         <details className="equipment-details equipment-unit-details">
-          <summary className="equipment-summary-button"><span><strong>Unidades ganadas</strong><small>{unitRows.length.toLocaleString('es-SV')} leads ganados con cantidad explícita · pulsa para ver el detalle</small></span><strong className="equipment-summary-value">{wonUnits.toLocaleString('es-SV')}</strong><ChevronDown size={17} /></summary>
+          <summary className="equipment-summary-button"><span><strong>Radios reportadas</strong><small>{unitRows.length.toLocaleString('es-SV')} leads ganados con una cantidad explícita en comentarios · pulsa para ver el detalle</small></span><strong className="equipment-summary-value">{wonUnits.toLocaleString('es-SV')}</strong><ChevronDown size={17} /></summary>
           {unitRows.length ? <TableWrap><thead><tr><th>Cliente</th><th>ID de lead</th><th>Ejecutivo</th><th>Etapa API</th><th>Unidades</th></tr></thead><tbody>
-            {unitRows.map((lead) => <tr key={lead.id}><td><strong>{lead.clientName || 'Sin nombre en API'}</strong></td><td>{leadDisplayId(lead)}</td><td>{lead.asesor}</td><td>{lead.apiStageLabel || stageLabel(lead.etapa)}</td><td><strong>{lead.cantidadEquipos}</strong></td></tr>)}
-          </tbody></TableWrap> : <EmptyState title="Sin cantidades explícitas" body="Los leads ganados seleccionados no incluyen una cantidad de equipos reconocible en los datos del API." />}
+            {unitRows.map((lead) => <tr key={lead.id}><td><strong>{lead.clientName || 'Sin nombre en API'}</strong></td><td>{leadDisplayId(lead)}</td><td>{lead.asesor}</td><td>{lead.apiStageLabel || stageLabel(lead.etapa)}</td><td><strong>{lead.radiosVendidosReportadas}</strong></td></tr>)}
+          </tbody></TableWrap> : <EmptyState title="Sin cantidades explícitas" body="Los comentarios de los leads ganados seleccionados no incluyen cantidades explícitas de radios." />}
         </details>
       </Card>
     </div>
 
-    <div className="results-highlight"><CircleHelp size={16} /><span>“Unidades ganadas” suma cantidades documentadas en leads cuyo estado es Ganado; el API no ofrece un campo independiente de unidades facturadas. Los valores originales de motivos se consultan en categoria_cierre y no se inventan cuando son ambiguos.</span></div>
+    <div className="results-highlight"><CircleHelp size={16} /><span>“Radios reportadas” suma menciones explícitas en comentarios de leads ganados, sin confirmar ventas. La cantidad estructurada de propuesta en Forecast es otra fuente y no se suma a este total. Los motivos se leen de la información de cierre de Prospektia, no de categoria_cierre (que puede contener rubros o productos).</span></div>
   </div>
 }

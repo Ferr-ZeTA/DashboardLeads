@@ -9,6 +9,7 @@ async function fetchPage(offset, signal) {
   const response = await fetch(url, {
     method: 'GET',
     headers: { Accept: 'application/json' },
+    cache: 'no-store',
     signal,
   })
   if (!response.ok) {
