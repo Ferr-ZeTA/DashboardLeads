@@ -222,13 +222,40 @@ function AdvisorChart({ advisors }) {
 
 function CountryChart({ countries }) {
   const total = countries.reduce((sum, [, stats]) => sum + stats.total, 0)
+  const segments = countries.reduce((result, [country, stats], index) => {
+    const start = result.percentage
+    const end = start + (total ? stats.total / total * 100 : 0)
+    const normalizedCountry = country.toLocaleLowerCase()
+    const color = normalizedCountry === 'guatemala' || normalizedCountry === 'gt'
+      ? '#38bdf8'
+      : normalizedCountry === 'el salvador' || normalizedCountry === 'sv'
+        ? '#fbbf24'
+        : ['#a78bfa', '#34d399', '#fb7185', '#22d3ee'][index % 4]
+    result.segments.push({ country, stats, color, start, end })
+    result.percentage = end
+    return result
+  }, { segments: [], percentage: 0 }).segments
+  const pieGradient = segments.map(({ color, start, end }) => `${color} ${start}% ${end}%`).join(', ')
+
   return <div className="country-chart">
-    {countries.map(([country, stats]) => <div className="country-chart-row" key={country}>
-      <div className="country-chart-title"><strong>{country}</strong><span>{numberFormat.format(stats.total)} leads · {percentFormat(stats.total, total)}</span></div>
-      <div className="country-chart-track"><i style={{ width: `${total ? stats.total / total * 100 : 0}%` }} /></div>
-      <small>{numberFormat.format(stats.qualified)} calificados · {numberFormat.format(stats.won)} radicados</small>
-    </div>)}
-    {!countries.length && <p className="empty-chart">Sin datos de país para la selección.</p>}
+    {total > 0
+      ? <>
+        <div
+          className="country-pie"
+          role="img"
+          aria-label={`Distribución de ${numberFormat.format(total)} leads por país: ${segments.map(({ country, stats }) => `${country}, ${numberFormat.format(stats.total)} leads, ${percentFormat(stats.total, total)}`).join('; ')}`}
+          style={{ background: `conic-gradient(${pieGradient})` }}
+        />
+        <div className="country-pie-legend">
+          {segments.map(({ country, stats, color }) => <div className="country-pie-item" key={country}>
+            <i style={{ background: color }} />
+            <strong>{country}</strong>
+            <span>{numberFormat.format(stats.total)} leads · {percentFormat(stats.total, total)}</span>
+            <small>{numberFormat.format(stats.qualified)} calificados · {numberFormat.format(stats.won)} radicados</small>
+          </div>)}
+        </div>
+      </>
+      : <p className="empty-chart">Sin datos de país para la selección.</p>}
   </div>
 }
 

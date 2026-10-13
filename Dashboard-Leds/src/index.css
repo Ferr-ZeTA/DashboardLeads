@@ -128,14 +128,14 @@ button:focus-visible, summary:focus-visible, input:focus-visible { outline: 2px 
 .advisor-total-bar { top: 0; opacity: .9; }
 .advisor-won-bar { bottom: 0; }
 .advisor-chart-row>strong { color: #bac6d6; font-size: 8px; text-align: right; font-variant-numeric: tabular-nums; }
-.country-chart { display: grid; min-height: 195px; align-content: center; gap: 23px; padding: 8px 4px; }
-.country-chart-row { display: grid; gap: 7px; }
-.country-chart-title { display: flex; justify-content: space-between; gap: 10px; }
-.country-chart-title strong { color: #dce5ef; font-size: 10px; }
-.country-chart-title span,.country-chart-row>small { color: #8d9bb0; font-size: 8px; }
-.country-chart-track { height: 10px; overflow: hidden; border-radius: 99px; background: #334155; }
-.country-chart-track i { display: block; height: 100%; border-radius: inherit; background: linear-gradient(90deg,#0284c7,#38bdf8); }
-.country-chart-row:nth-child(2) .country-chart-track i { background: linear-gradient(90deg,#d97706,#fbbf24); }
+.country-chart { display: grid; min-height: 213px; grid-template-columns: minmax(125px,158px) minmax(0,1fr); align-items: center; justify-content: center; gap: clamp(16px,3vw,32px); padding: 8px 4px; }
+.country-pie { width: min(100%,158px); aspect-ratio: 1; justify-self: center; border: 1px solid #ffffff1a; border-radius: 50%; box-shadow: 0 8px 24px #0206173d; }
+.country-pie-legend { display: grid; gap: 12px; }
+.country-pie-item { display: grid; grid-template-columns: 9px minmax(0,1fr) auto; align-items: center; gap: 4px 7px; }
+.country-pie-item>i { width: 8px; height: 8px; grid-row: span 2; border-radius: 2px; }
+.country-pie-item>strong { overflow: hidden; color: #dce5ef; font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
+.country-pie-item>span { color: #cbd5e1; font-size: 8px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.country-pie-item>small { grid-column: 2 / -1; color: #8d9bb0; font-size: 7px; }
 .empty-chart { display: grid; min-height: 150px; place-items: center; margin: 0; color: #8796ab; font-size: 9px; text-align: center; }
 
 .funnel-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 15px; margin: -2px 0 13px; color: #aab7c8; font-size: 8px; }
@@ -234,5 +234,9 @@ button:focus-visible, summary:focus-visible, input:focus-visible { outline: 2px 
   .type-donut>div { width: 89px; height: 89px; }
   .type-donut strong { font-size: 19px; }
   .type-chart-legend { min-width: 120px; }
+  .country-chart { grid-template-columns: minmax(100px,125px) minmax(0,1fr); gap: 13px; }
+  .country-pie-item { grid-template-columns: 8px minmax(0,1fr); }
+  .country-pie-item>span { grid-column: 2; }
+  .country-pie-item>small { grid-column: 2; }
   .funnel-legend>small { width: 100%; margin-left: 0; }
 }
