@@ -52,10 +52,17 @@ export function reportedRadioCount(texts) {
 }
 
 export function resumenBase(leads, filters) {
+  const matchesFilter = (selection, value) => {
+    if (selection == null || selection === '') return true
+    return Array.isArray(selection) ? selection.includes(value) : selection === value
+  }
+
   return leads.filter((lead) => {
-    if (filters.filterEjecutivo && lead.asesor !== filters.filterEjecutivo) return false
-    if (filters.filterPais && lead.pais !== filters.filterPais) return false
-    if (filters.filterMes && monthValue(lead.proximaGestion) !== filters.filterMes) return false
+    if (!matchesFilter(filters.filterEjecutivo, lead.asesor)) return false
+    if (!matchesFilter(filters.filterPais, lead.pais)) return false
+    if (!matchesFilter(filters.filterMes, monthValue(lead.fechaCreacion))) return false
+    if (!matchesFilter(filters.filterTipoLead, lead.tipoLead)) return false
+    if (!matchesFilter(filters.filterEstado, lead.estado)) return false
     return true
   })
 }
@@ -199,7 +206,9 @@ export function parseLead(value, index) {
     calificacionConocida: typeof value.calificacionConocida === 'boolean'
       ? value.calificacionConocida
       : typeof value.calificado === 'boolean',
+    tipoLead: value.tipoLead,
     motivo: value.motivo ?? undefined,
+    fechaCreacion: optionalDate('fechaCreacion'),
     proximaGestion: optionalDate('proximaGestion'),
     fechaSeguimiento: optionalDate('fechaSeguimiento'),
     comentarioGestion: value.comentarioGestion?.trim() || undefined,
@@ -469,8 +478,15 @@ export function mapMeetingLead(row, index) {
     etapa,
     maxEtapa: etapa,
     maxEtapaConocida: false,
-    calificado: typeof row.calificado === 'boolean' ? row.calificado : false,
-    calificacionConocida: typeof row.calificado === 'boolean',
+    calificado: row.tipo_lead === 'calificado' || row.calificado === true,
+    calificacionConocida: ['calificado', 'no_calificado'].includes(row.tipo_lead)
+      || typeof row.calificado === 'boolean',
+    tipoLead: ['calificado', 'no_calificado'].includes(row.tipo_lead)
+      ? row.tipo_lead
+      : typeof row.calificado === 'boolean'
+        ? row.calificado ? 'calificado' : 'no_calificado'
+        : undefined,
+    fechaCreacion: row.created_at,
     motivo: estado === 'perdido' ? meetingLossReason(row) : undefined,
     proximaGestion: directDate ?? management?.date,
     fechaSeguimiento: normalizeDateOnly(row.stage_feedback_json?.['5']?.fecha_seguimiento),
