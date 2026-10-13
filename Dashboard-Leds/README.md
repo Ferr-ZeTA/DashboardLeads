@@ -8,7 +8,14 @@ Dashboard comercial construido con React, JavaScript/JSX, Vite y Tailwind CSS.
 2. Ejecuta `npm install` y después `npm run dev`.
 3. Ejecuta `npm run lint` y `npm run build` para validar el proyecto.
 
-Durante el desarrollo, Vite actúa como proxy de `/api/metrics/reuniones` hacia `https://prospektia.red.com.sv` e inyecta `X-API-KEY` desde el entorno del servidor. El navegador solo llama al proxy de mismo origen, por lo que la credencial no se compila en el bundle. En producción se debe configurar un endpoint server-side equivalente; el proxy de desarrollo de Vite no es un backend de producción.
+Durante el desarrollo, Vite actúa como proxy de `/api/metrics/reuniones` hacia `https://prospektia.red.com.sv` e inyecta `X-API-KEY` desde el entorno del servidor. En Vercel, `api/metrics/reuniones.js` implementa la misma ruta como una función serverless y lee `RED_API_KEY` del entorno. El navegador llama al endpoint de mismo origen; la credencial no se compila en el bundle.
+
+## Despliegue en Vercel
+
+1. Importa el repositorio en Vercel y configura `Dashboard-Leds` como **Root Directory**.
+2. Usa `npm run build` como **Build Command** y `dist` como **Output Directory**.
+3. Añade `RED_API_KEY` en **Project Settings → Environment Variables** para los entornos donde se desplegará. No uses el prefijo `VITE_`.
+4. Despliega o vuelve a desplegar el proyecto después de guardar la variable.
 
 ## Datos y reglas
 
