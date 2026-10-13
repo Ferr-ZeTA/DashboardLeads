@@ -1,6 +1,6 @@
-import { AlertTriangle, BarChart3, Check, CircleHelp, Percent, Tag, Target, Trophy } from 'lucide-react'
+import { AlertTriangle, BarChart3, Check, ChevronDown, CircleHelp, Percent, Tag, Target, Trophy } from 'lucide-react'
 import { Card, EmptyState, SectionHeading, TableWrap } from '../components/ui.jsx'
-import { lossReasonLabel, OPEN_STATES, stageLabel } from '../utils/leads.js'
+import { leadDisplayId, lossReasonLabel, stageLabel } from '../utils/leads.js'
 
 function ResultKpi({ label, value, detail, icon: Icon, tone }) {
   return <Card className="result-kpi">
@@ -13,13 +13,8 @@ function ResultKpi({ label, value, detail, icon: Icon, tone }) {
 export function ResultadosView({ leads, metrics }) {
   const lost = leads.filter((lead) => lead.estado === 'perdido')
   const won = leads.filter((lead) => lead.estado === 'ganado')
-  const radioRows = won.filter((lead) => Number.isInteger(lead.radiosEnComentario) && lead.radiosEnComentario > 0)
-  const reportedRadios = radioRows.reduce((sum, lead) => sum + lead.radiosEnComentario, 0)
-  const pendingSignature = leads.filter((lead) =>
-    OPEN_STATES.includes(lead.estado)
-    && lead.pendienteFirma
-    && !['perdida', 'cerrada'].includes(lead.raw?.resultado_venta),
-  )
+  const unitRows = won.filter((lead) => Number.isInteger(lead.cantidadEquipos) && lead.cantidadEquipos > 0)
+  const wonUnits = unitRows.reduce((sum, lead) => sum + lead.cantidadEquipos, 0)
   const reasonCounts = new Map()
 
   for (const lead of lost) {
@@ -52,14 +47,14 @@ export function ResultadosView({ leads, metrics }) {
   return <div className="view-stack results-view">
     <SectionHeading
       title="Resultados comerciales"
-      subtitle="Revisa cierres, motivos de pérdida, radios documentadas y oportunidades pendientes de firma."
+      subtitle="Cierres, texto original de las razones de pérdida y unidades documentadas en leads ganados."
     />
 
     <div className="results-purpose">
       <span className="results-purpose-icon"><BarChart3 size={18} /></span>
       <div>
         <strong>¿Para qué sirve esta vista?</strong>
-        <p>Resume los cierres de los leads incluidos en los filtros globales. Las unidades de radios solo se cuentan cuando existe una cantidad explícita en comentarios de un lead ganado.</p>
+        <p>Resume los cierres de los leads incluidos en los filtros. La cantidad ganada usa el mismo campo unificado que muestra Forecast; solo suma leads ganados con una cantidad explícita.</p>
       </div>
       <span className="results-filter-note">Respeta los filtros de ejecutivo, país y mes de próxima gestión</span>
     </div>
@@ -84,11 +79,11 @@ export function ResultadosView({ leads, metrics }) {
       <Card className="results-panel">
         <SectionHeading
           title="¿Por qué se pierden?"
-          subtitle="Clasificación orientativa de la categoría de cierre escrita en el API."
+          subtitle="Motivos homologados desde el campo categoria_cierre que entrega Prospektia."
         />
         <div className="results-explainer">
           <CircleHelp size={15} />
-          <p>El API guarda texto libre, no un catálogo oficial de motivos. Las coincidencias claras se agrupan; “Otros / revisar” contiene textos no reconocidos y categorías vacías o genéricas.</p>
+          <p>El API guarda texto libre, no un catálogo oficial. “Otros / revisar” reúne valores originales que no se pueden asignar con seguridad a un motivo; despliega cada grupo para ver el texto recibido y sus leads.</p>
         </div>
         <div className="results-panel-summary">
           <strong>{classifiedCount.toLocaleString('es-SV')}</strong>
@@ -98,7 +93,7 @@ export function ResultadosView({ leads, metrics }) {
           {reasonRows.map(([reason, count]) => {
             const unclassified = reason === 'otro' || reason === 'sin_motivo'
             const label = reason === 'otro'
-              ? 'Otros / revisar texto'
+              ? 'Otros / revisar texto original'
               : reason === 'sin_motivo'
                 ? 'Sin categoría informativa'
                 : lossReasonLabel(reason)
@@ -111,48 +106,38 @@ export function ResultadosView({ leads, metrics }) {
                 <span style={{ width: `${count / maxReason * 100}%` }} />
               </div>
               {reason === 'otro' && <details className="other-reasons-details">
-                <summary>Desglosar {count.toLocaleString('es-SV')} cierres agrupados</summary>
+                <summary>Ver valores originales de {count.toLocaleString('es-SV')} cierres</summary>
                 <div className="other-reasons-list">
                   {otherReasonRows.map(([rawReason, categoryLeads]) => <details key={rawReason}>
                     <summary><span>{rawReason}</span><strong>{categoryLeads.length.toLocaleString('es-SV')}</strong></summary>
-                    <ul>{categoryLeads.map((lead) => <li key={lead.id}>#{lead.id} · {lead.asesor}</li>)}</ul>
+                    <ul>{categoryLeads.map((lead) => <li key={lead.id}>{lead.clientName || 'Sin nombre en API'} · {leadDisplayId(lead)} · {lead.asesor}</li>)}</ul>
                   </details>)}
                 </div>
               </details>}
             </div>
           })}
         </div> : <EmptyState title="No hay leads perdidos" body="Los filtros actuales no contienen oportunidades perdidas." />}
-        <p className="results-footnote">El porcentaje de cada categoría se calcula sobre los leads perdidos, no sobre todos los leads.</p>
+        <p className="results-footnote">El porcentaje de cada categoría se calcula sobre los leads perdidos; el texto no se altera en el detalle desplegable.</p>
       </Card>
 
       <Card className="results-panel">
         <SectionHeading
-          title="Equipos por oportunidad"
-          subtitle="Radios mencionadas en cierres ganados y oportunidades que aún esperan firma."
+          title="Unidades ganadas"
+          subtitle="Suma la cantidad explícita registrada en leads con estado Ganado."
         />
         <div className="results-explainer results-explainer-green">
           <Tag size={15} />
-          <p>La cantidad se extrae de menciones explícitas como “4 radios” en comentarios de leads ganados. Para no duplicar una misma oportunidad, se toma la mayor cantidad encontrada por lead. Un comentario sin cantidad no se interpreta como cero.</p>
+          <p>Se usa `cantidadEquipos`, la misma extracción conservadora que aparece en Forecast: primero campos estructurados del API y luego menciones explícitas en comentarios. Los leads sin cantidad no se suman.</p>
         </div>
-        <div className="equipment-metrics">
-          <div><span>Radios reportadas</span><strong>{reportedRadios.toLocaleString('es-SV')}</strong><small>En {radioRows.length.toLocaleString('es-SV')} oportunidades ganadas con cantidad explícita</small></div>
-          <div><span>Pendientes de firma</span><strong>{pendingSignature.length.toLocaleString('es-SV')}</strong><small>Leads abiertos con esa señal en comentarios del API</small></div>
-        </div>
-        <details className="equipment-details">
-          <summary>Ver {radioRows.length.toLocaleString('es-SV')} oportunidades ganadas con radios reportadas</summary>
-          {radioRows.length ? <TableWrap><thead><tr><th>Lead</th><th>Ejecutivo</th><th>Etapa API</th><th>Radios mencionadas</th></tr></thead><tbody>
-            {radioRows.map((lead) => <tr key={lead.id}><td><strong>#{lead.id}</strong></td><td>{lead.asesor}</td><td>{lead.apiStageLabel || stageLabel(lead.etapa)}</td><td><strong>{lead.radiosEnComentario}</strong></td></tr>)}
-          </tbody></TableWrap> : <EmptyState title="Sin cantidades explícitas" body="Los comentarios de los cierres ganados seleccionados no incluyen cantidades de radios reconocibles." />}
-        </details>
-        <details className="equipment-details">
-          <summary>Ver {pendingSignature.length.toLocaleString('es-SV')} oportunidades pendientes de firma</summary>
-          {pendingSignature.length ? <TableWrap><thead><tr><th>Lead</th><th>Ejecutivo</th><th>Etapa API</th></tr></thead><tbody>
-            {pendingSignature.map((lead) => <tr key={lead.id}><td><strong>#{lead.id}</strong></td><td>{lead.asesor}</td><td>{lead.apiStageLabel || stageLabel(lead.etapa)}</td></tr>)}
-          </tbody></TableWrap> : <EmptyState title="Sin pendientes de firma identificados" body="No hay leads abiertos con una mención explícita de firma pendiente en la selección actual." />}
+        <details className="equipment-details equipment-unit-details">
+          <summary className="equipment-summary-button"><span><strong>Unidades ganadas</strong><small>{unitRows.length.toLocaleString('es-SV')} leads ganados con cantidad explícita · pulsa para ver el detalle</small></span><strong className="equipment-summary-value">{wonUnits.toLocaleString('es-SV')}</strong><ChevronDown size={17} /></summary>
+          {unitRows.length ? <TableWrap><thead><tr><th>Cliente</th><th>ID de lead</th><th>Ejecutivo</th><th>Etapa API</th><th>Unidades</th></tr></thead><tbody>
+            {unitRows.map((lead) => <tr key={lead.id}><td><strong>{lead.clientName || 'Sin nombre en API'}</strong></td><td>{leadDisplayId(lead)}</td><td>{lead.asesor}</td><td>{lead.apiStageLabel || stageLabel(lead.etapa)}</td><td><strong>{lead.cantidadEquipos}</strong></td></tr>)}
+          </tbody></TableWrap> : <EmptyState title="Sin cantidades explícitas" body="Los leads ganados seleccionados no incluyen una cantidad de equipos reconocible en los datos del API." />}
         </details>
       </Card>
     </div>
 
-    <div className="results-highlight"><CircleHelp size={16} /><span>La cantidad de radios es una extracción conservadora del texto de comentarios, no un campo estructurado de unidades vendidas. Los leads sin cantidad explícita no se suman ni se consideran cero.</span></div>
+    <div className="results-highlight"><CircleHelp size={16} /><span>“Unidades ganadas” suma cantidades documentadas en leads cuyo estado es Ganado; el API no ofrece un campo independiente de unidades facturadas. Los valores originales de motivos se consultan en categoria_cierre y no se inventan cuando son ambiguos.</span></div>
   </div>
 }

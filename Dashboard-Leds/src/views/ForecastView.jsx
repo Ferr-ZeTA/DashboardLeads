@@ -39,16 +39,15 @@ function hasConflictingOutcome(lead) {
 }
 
 function isAutomaticCandidate(lead) {
-  return OPEN_STATES.includes(lead.estado)
+  return lead.estado === 'activo'
     && !hasConflictingOutcome(lead)
-    && (lead.pendienteFirma || lead.apiStage === 6)
+    && lead.apiStage === 5
 }
 
 function formatReason(lead, override) {
   if (override?.included === true && !isAutomaticCandidate(lead)) return 'Inclusión manual'
   if (override?.included === false) return 'Excluido manualmente'
-  if (lead.pendienteFirma) return 'Firma pendiente reportada'
-  return 'Etapa API: cierre'
+  return 'Seguimiento · activo en API'
 }
 
 function estimatedDate(override) {
@@ -100,7 +99,7 @@ export function ForecastView({ leads }) {
   }).sort((a, b) => {
     const aDate = estimatedDate(overrides[a.id]) || '9999-12-31'
     const bDate = estimatedDate(overrides[b.id]) || '9999-12-31'
-    return aDate.localeCompare(bDate) || a.id.localeCompare(b.id)
+    return aDate.localeCompare(bDate) || String(a.id).localeCompare(String(b.id))
   })
 
   const matchingLeads = useMemo(() => {
@@ -138,10 +137,10 @@ export function ForecastView({ leads }) {
   }
 
   return <div className="view-stack">
-    <SectionHeading title="Forecast de cierres" subtitle="Solo muestra oportunidades con señal cercana a cierre ganado o leads que agregues manualmente." />
+    <SectionHeading title="Forecast de cierres" subtitle="Oportunidades en etapa Seguimiento y estado Activo, más las que incluyas manualmente." />
     {storedState.error && <div className="reconciliation-alert" role="alert"><CircleAlert size={18} /><div><strong>Problema con los datos manuales</strong><p>{storedState.error}</p></div></div>}
     <Card>
-      <div className="forecast-intro"><div className="forecast-icon"><CalendarClock size={21} /></div><div><strong>{forecast.length.toLocaleString('es-SV')} {forecast.length === 1 ? 'oportunidad próxima a cierre' : 'oportunidades próximas a cierre'}</strong><p>La cantidad de equipos se toma del dato explícito de Prospektia o de una cantidad mencionada en comentarios.</p></div><CircleDollarSign className="forecast-decoration" size={32} /></div>
+      <div className="forecast-intro"><div className="forecast-icon"><CalendarClock size={21} /></div><div><strong>{forecast.length.toLocaleString('es-SV')} {forecast.length === 1 ? 'oportunidad próxima a cierre' : 'oportunidades próximas a cierre'}</strong><p>La selección automática requiere etapa API Seguimiento (5) y estado Activo (`en_proceso`). Puedes incluir o excluir leads manualmente, salvo registros con un resultado cerrado contradictorio.</p></div><CircleDollarSign className="forecast-decoration" size={32} /></div>
       <div className="forecast-data-note"><CircleAlert size={16} /><span>Prospektia no devuelve fecha estimada de cierre: ingrésala manualmente. La fecha de próxima gestión y la fecha de reunión se muestran aparte y nunca se usan como fecha de cierre. Sin cantidad explícita se muestra “Sin dato”.</span></div>
       {conflicts > 0 && <p className="forecast-conflicts">{conflicts.toLocaleString('es-SV')} registros abiertos tienen resultado de venta cerrado y están excluidos para evitar inflar el forecast.</p>}
 

@@ -1,6 +1,6 @@
 import { AlertTriangle, ChevronDown, CircleHelp } from 'lucide-react'
 import { Badge, Card, SectionHeading, TableWrap } from '../components/ui.jsx'
-import { buildStageFunnel } from '../utils/leads.js'
+import { buildStageFunnel, leadDisplayId, stateLabel } from '../utils/leads.js'
 
 const colors = ['#472033', '#55243a', '#632b41', '#713449', '#80404f', '#17634f']
 
@@ -40,8 +40,14 @@ export function PipelineView({ leads }) {
             </div>
             <details className="stage-lead-details">
               <summary><span>Ver {stage.current.toLocaleString('es-SV')} leads ubicados aquí</span><ChevronDown size={15} /></summary>
-              {stage.leads.length ? <TableWrap><thead><tr><th>Lead</th><th>Ejecutivo</th><th>Estado</th></tr></thead><tbody>
-                {stage.leads.map((lead) => <tr key={lead.id}><td><strong>#{lead.id}</strong></td><td>{lead.asesor}</td><td><Badge state={lead.estado} /></td></tr>)}
+              {stage.leads.length ? <TableWrap><thead><tr><th>Cliente / lead</th><th>ID</th><th>Ejecutivo</th><th>Estado</th></tr></thead><tbody>
+                {stage.stage === 6 ? ['ganado', 'perdido', 'activo', 'en_espera', 'detenido', 'invalido'].flatMap((state) => {
+                  const stateLeads = stage.leads.filter((lead) => lead.estado === state)
+                  return stateLeads.length ? [
+                    <tr className={`pipeline-state-group pipeline-state-${state}`} key={`group-${state}`}><td colSpan="4">{stateLabel(state)} · {stateLeads.length.toLocaleString('es-SV')}</td></tr>,
+                    ...stateLeads.map((lead) => <tr key={lead.id}><td><strong>{lead.clientName || 'Sin nombre en API'}</strong></td><td>{leadDisplayId(lead)}</td><td>{lead.asesor}</td><td><Badge state={lead.estado} /></td></tr>),
+                  ] : []
+                }) : stage.leads.map((lead) => <tr key={lead.id}><td><strong>{lead.clientName || 'Sin nombre en API'}</strong></td><td>{leadDisplayId(lead)}</td><td>{lead.asesor}</td><td><Badge state={lead.estado} /></td></tr>)}
               </tbody></TableWrap> : <p className="stage-empty">No hay leads en la etapa actual con los filtros seleccionados.</p>}
             </details>
           </div>

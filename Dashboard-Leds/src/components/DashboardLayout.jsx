@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Activity, AlertCircle, BarChart3, Bell, CalendarDays, CircleHelp, LayoutDashboard, Menu, RefreshCw, TrendingUp, X } from 'lucide-react'
+import { Activity, AlertCircle, BarChart3, Bell, CalendarDays, CircleHelp, ContactRound, LayoutDashboard, Menu, RefreshCw, TrendingUp, X } from 'lucide-react'
 import intelfonLogo from '../assets/Intelfon_-_Red.png'
 import { FilterBar } from './FilterBar.jsx'
 import { ErrorBanner, LoadingState } from './ui.jsx'
@@ -9,6 +9,7 @@ import { ForecastView } from '../views/ForecastView.jsx'
 import { PipelineView } from '../views/PipelineView.jsx'
 import { ResultadosView } from '../views/ResultadosView.jsx'
 import { ResumenView } from '../views/ResumenView.jsx'
+import { DirectorioView } from '../views/DirectorioView.jsx'
 import { FiltersProvider } from '../context/FiltersProvider.jsx'
 import { formatDate } from '../utils/dates.js'
 
@@ -17,6 +18,7 @@ const tabs = [
   { id: 'pipeline', label: 'Pipeline', icon: TrendingUp },
   { id: 'resultados', label: 'Resultados', icon: BarChart3 },
   { id: 'forecast', label: 'Forecast', icon: CalendarDays },
+  { id: 'directorio', label: 'Directorio', icon: ContactRound },
 ]
 
 function DashboardContent() {
@@ -46,6 +48,7 @@ function DashboardContent() {
           {activeTab === 'pipeline' && <PipelineView leads={base} />}
           {activeTab === 'resultados' && <ResultadosView leads={base} metrics={metrics} />}
           {activeTab === 'forecast' && <ForecastView leads={base} />}
+          {activeTab === 'directorio' && <DirectorioView leads={base} />}
           {loading && <span className="refreshing-label"><RefreshCw size={12} className="spin" /> Actualizando datos</span>}
         </div>}
         {!error && !loading && !leads.length && <div className="data-empty-note"><AlertCircle size={15} />La API respondió sin leads. Revisa el endpoint y el formato de datos.</div>}

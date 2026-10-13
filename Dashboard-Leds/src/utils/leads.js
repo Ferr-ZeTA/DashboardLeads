@@ -12,6 +12,10 @@ export const API_STAGE_LABELS = [
   'Cierre',
 ]
 
+export function leadDisplayId(lead) {
+  return lead.clientId || String(lead.id)
+}
+
 export function buildStageFunnel(leads) {
   const apiLeads = leads.filter((lead) => Number.isFinite(lead.apiStage))
 
@@ -122,13 +126,10 @@ export function parseLead(value, index) {
   if (value.calificado != null && typeof value.calificado !== 'boolean') {
     throw new Error(`El campo calificado del lead ${id} debe ser booleano.`)
   }
-  for (const field of ['calificacionConocida', 'maxEtapaConocida', 'pendienteFirma']) {
+  for (const field of ['calificacionConocida', 'maxEtapaConocida']) {
     if (value[field] != null && typeof value[field] !== 'boolean') {
       throw new Error(`El campo ${field} del lead ${id} debe ser booleano.`)
     }
-  }
-  if (value.radiosEnComentario != null && (!Number.isInteger(value.radiosEnComentario) || value.radiosEnComentario < 0)) {
-    throw new Error(`El campo radiosEnComentario del lead ${id} debe ser un entero no negativo.`)
   }
   if (value.cantidadEquipos != null && (!Number.isInteger(value.cantidadEquipos) || value.cantidadEquipos < 1 || value.cantidadEquipos > 999)) {
     throw new Error(`El campo cantidadEquipos del lead ${id} debe ser un entero entre 1 y 999.`)
@@ -182,8 +183,6 @@ export function parseLead(value, index) {
     fcIncluir: optionalBoolean('fcIncluir'),
     fcExcluir: optionalBoolean('fcExcluir'),
     fcIntentar: optionalBoolean('fcIntentar'),
-    pendienteFirma: value.pendienteFirma ?? false,
-    radiosEnComentario: value.radiosEnComentario,
     cantidadEquipos: value.cantidadEquipos,
     producto: value.producto,
     clientId: value.clientId?.trim() || undefined,
@@ -359,25 +358,6 @@ function meetingComment(row) {
   return undefined
 }
 
-function reportedRadioCount(texts) {
-  const patterns = [
-    /\b(\d{1,3})\s*(?:unidades?\s+de\s+)?radios?\b/gi,
-    /\bradios?\s*(?:x|:|de|por)?\s*(\d{1,3})\b/gi,
-  ]
-  const quantities = []
-  for (const text of texts) {
-    for (const pattern of patterns) {
-      pattern.lastIndex = 0
-      for (const match of text.matchAll(pattern)) {
-        const quantity = Number(match[1])
-        if (Number.isInteger(quantity) && quantity > 0 && quantity <= 999) quantities.push(quantity)
-      }
-    }
-  }
-
-  return quantities.length ? Math.max(...quantities) : undefined
-}
-
 function parseEquipmentCount(texts) {
   const patterns = [
     /\b(\d{1,3})\s*(?:unidades?\s+de\s+)?(?:radios?|equipos?|terminales?)\b/gi,
@@ -418,11 +398,6 @@ function structuredEquipmentCount(row, currentStageOnly = false) {
   return undefined
 }
 
-function hasPendingSignature(texts) {
-  const normalized = texts.join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
-  return /\bpendient[ea]s?\b.{0,40}\bfirm(?:a|ar|e|en|ado|ada|ados|adas)\b|\bfirm(?:a|ar|e|en|ado|ada|ados|adas)\b.{0,40}\bpendient[ea]s?\b|\bpor\s+firmar\b|\ben\s+firma\b/.test(normalized)
-}
-
 export function mapMeetingLead(row, index) {
   const estado = meetingState(row)
   const etapa = meetingStage(row)
@@ -460,8 +435,6 @@ export function mapMeetingLead(row, index) {
     comentarioReunion: meetingComment(row),
     apiStage: Number(row.opportunity_stage),
     apiStageLabel,
-    pendienteFirma: Number(row.opportunity_stage) >= 5 && hasPendingSignature(getFeedbackTexts(row, true)),
-    radiosEnComentario: estado === 'ganado' ? reportedRadioCount(feedbackTexts) : undefined,
     cantidadEquipos: structuredEquipmentCount(row, true)
       ?? parseEquipmentCount(currentStageTexts)
       ?? structuredEquipmentCount(row)
