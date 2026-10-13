@@ -363,6 +363,7 @@ button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-v
 .forecast-search-hint { color: #94a3b8; font-size: 10px; }
 .forecast-table { margin-top: 14px; }
 .forecast-table table { min-width: 900px; }
+.forecast-pagination { margin-top: 0; }
 .forecast-table td { vertical-align: top; }
 .forecast-table-lead { min-width: 170px; }
 .forecast-table-lead strong,.forecast-table-lead small,.forecast-manager-subtitle { display: block; }

@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
-import { CalendarClock, CircleAlert, CircleDollarSign, Search, UserPlus, X } from 'lucide-react'
+import { CalendarClock, ChevronLeft, ChevronRight, CircleAlert, CircleDollarSign, Search, UserPlus, X } from 'lucide-react'
 import { Card, EmptyState, SectionHeading, TableWrap } from '../components/ui.jsx'
 import { formatDate } from '../utils/dates.js'
 import { OPEN_STATES, stageLabel } from '../utils/leads.js'
 
 const STORAGE_KEY = 'red-dashboard-forecast-overrides-v1'
+const FORECAST_PAGE_SIZE = 7
 
 function readOverrides() {
   try {
@@ -89,6 +90,7 @@ export function ForecastView({ leads }) {
   const [storedState, setStoredState] = useState(readOverrides)
   const [query, setQuery] = useState('')
   const [selectedLead, setSelectedLead] = useState(null)
+  const [page, setPage] = useState(1)
   const overrides = storedState.overrides
 
   useEffect(() => {
@@ -111,6 +113,9 @@ export function ForecastView({ leads }) {
     const bDate = estimatedDate(overrides[b.id]) || '9999-12-31'
     return aDate.localeCompare(bDate) || String(a.id).localeCompare(String(b.id))
   })
+  const pages = Math.max(1, Math.ceil(forecast.length / FORECAST_PAGE_SIZE))
+  const currentPage = Math.min(page, pages)
+  const forecastRows = forecast.slice((currentPage - 1) * FORECAST_PAGE_SIZE, currentPage * FORECAST_PAGE_SIZE)
 
   const matchingLeads = useMemo(() => {
     const term = query.trim().toLocaleLowerCase('es')
@@ -154,7 +159,7 @@ export function ForecastView({ leads }) {
       <div className="forecast-data-note"><CircleAlert size={16} /><span>La cantidad del campo estructurado del API y la mención en el comentario de la etapa actual se muestran por separado; no se mezclan comentarios históricos ni se presentan como radios vendidas. Prospektia no devuelve fecha estimada de cierre: ingrésala manualmente. Las fechas de próxima gestión y reunión nunca se usan como fecha de cierre.</span></div>
       {conflicts > 0 && <p className="forecast-conflicts">{conflicts.toLocaleString('es-SV')} registros abiertos tienen resultado de venta cerrado y están excluidos para evitar inflar el forecast.</p>}
 
-      <TableWrap className="forecast-table"><thead><tr><th>Lead</th><th>ID</th><th>Equipos reportados y fuente</th><th>Fecha estimada de cierre</th><th>Próxima gestión (API)</th><th>Seguimiento reportado</th><th>Comentario</th><th>Acción</th></tr></thead><tbody>{forecast.length ? forecast.map((lead) => {
+      <TableWrap className="forecast-table"><thead><tr><th>Lead</th><th>ID</th><th>Equipos reportados y fuente</th><th>Fecha estimada de cierre</th><th>Próxima gestión (API)</th><th>Seguimiento reportado</th><th>Comentario</th><th>Acción</th></tr></thead><tbody>{forecastRows.length ? forecastRows.map((lead) => {
         const override = overrides[lead.id]
         const manuallyIncluded = override?.included === true && !isAutomaticCandidate(lead)
         const equipment = equipmentQuantity(lead)
@@ -169,6 +174,13 @@ export function ForecastView({ leads }) {
           <td><button className="forecast-action forecast-action-exclude" onClick={() => toggleInclusion(lead)}>Excluir</button></td>
         </tr>
       }) : <tr><td colSpan="8"><EmptyState title="Sin candidatos próximos a cierre" body="No hay leads con una señal explícita de cierre en Prospektia. Puedes buscar y agregar manualmente una oportunidad que el equipo confirme como próxima a ganar." /></td></tr>}</tbody></TableWrap>
+      {forecast.length > 0 && <div className="pagination forecast-pagination">
+        <span>Mostrando {(currentPage - 1) * FORECAST_PAGE_SIZE + 1}–{Math.min(currentPage * FORECAST_PAGE_SIZE, forecast.length)} de {forecast.length.toLocaleString('es-SV')} oportunidades · Página {currentPage} de {pages}</span>
+        <div>
+          <button className="page-button" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)} aria-label="Página anterior del forecast"><ChevronLeft size={17} /></button>
+          <button className="page-button" disabled={currentPage >= pages} onClick={() => setPage(currentPage + 1)} aria-label="Página siguiente del forecast"><ChevronRight size={17} /></button>
+        </div>
+      </div>}
     </Card>
 
     <Card className="forecast-manager">
