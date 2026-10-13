@@ -44,7 +44,7 @@ function DashboardContent() {
         {loading && !leads.length ? <LoadingState /> : <div className={loading ? 'content-refreshing' : ''}>
           {activeTab === 'resumen' && <ResumenView leads={base} metrics={metrics} />}
           {activeTab === 'pipeline' && <PipelineView leads={base} />}
-          {activeTab === 'resultados' && <ResultadosView leads={base} />}
+          {activeTab === 'resultados' && <ResultadosView leads={base} metrics={metrics} />}
           {activeTab === 'forecast' && <ForecastView leads={base} />}
           {loading && <span className="refreshing-label"><RefreshCw size={12} className="spin" /> Actualizando datos</span>}
         </div>}

@@ -1,26 +1,52 @@
-import { ArrowRight, CircleAlert, CircleHelp, MoveRight } from 'lucide-react'
-import { Card, SectionHeading } from '../components/ui.jsx'
-import { STAGE_ORDER } from '../types/lead.js'
-import { stageLabel } from '../utils/leads.js'
+import { AlertTriangle, ChevronDown, CircleHelp } from 'lucide-react'
+import { Badge, Card, SectionHeading, TableWrap } from '../components/ui.jsx'
+import { buildStageFunnel } from '../utils/leads.js'
 
-const colors = ['#f43f5e', '#fb7185', '#34d399', '#10b981']
+const colors = ['#472033', '#55243a', '#632b41', '#713449', '#80404f', '#17634f']
 
 export function PipelineView({ leads }) {
-  const openLeads = leads.filter((lead) => ['activo', 'en_espera', 'detenido'].includes(lead.estado))
-  const knownQualification = openLeads.filter((lead) => lead.calificacionConocida)
-  const qualified = knownQualification.filter((lead) => lead.calificado).length
-  const stageTotal = STAGE_ORDER.filter((stage) => stage !== 'documentacion')
-    .reduce((total, stage) => total + openLeads.filter((lead) => lead.etapa === stage).length, 0)
+  const stages = buildStageFunnel(leads)
+  const maxReached = Math.max(1, ...stages.map((stage) => stage.reached))
+  const stageTracked = leads.filter((lead) => Number.isFinite(lead.apiStage)).length
+  const missingStage = leads.length - stageTracked
+
   return <div className="view-stack">
-    <SectionHeading title="Pipeline comercial" subtitle="Distribución de oportunidades abiertas en cada etapa reportada por la API." />
-    <div className="pipeline-note"><CircleHelp size={16} />La API no incluye calificación ni una etapa específica de documentación. Esos datos no se infieren.</div>
-    {stageTotal !== openLeads.length && <div className="reconciliation-alert" role="alert"><CircleAlert size={18} /><div><strong>El pipeline no cuadra con los estados abiertos</strong><p>{stageTotal} leads asignados a etapas frente a {openLeads.length} abiertos.</p></div></div>}
-    <div className="pipeline-grid">{STAGE_ORDER.map((stage, index) => {
-      const inStage = openLeads.filter((lead) => lead.etapa === stage)
-      const unavailable = stage === 'documentacion'
-      const percent = openLeads.length ? Math.round(inStage.length / openLeads.length * 100) : 0
-      return <Card key={stage} className={`pipeline-column ${unavailable ? 'stage-unavailable' : ''}`}><div className="stage-color" style={{ backgroundColor: colors[index] }} /><div className="pipeline-title"><span>{String(index + 1).padStart(2, '0')}</span><MoveRight size={16} /></div><h3>{stageLabel(stage)}</h3><div className="pipeline-count">{unavailable ? 'N/D' : inStage.length}</div><div className="pipeline-progress"><span style={{ width: `${percent}%`, backgroundColor: colors[index] }} /></div><div className="pipeline-caption">{unavailable ? 'No reportada por la API' : `${percent}% del pipeline abierto`}</div>{index < STAGE_ORDER.length - 1 && <ArrowRight className="pipeline-arrow" size={20} />}</Card>
-    })}</div>
-    <Card className="pipeline-foot"><div><strong>{openLeads.length}</strong><span>Oportunidades abiertas</span></div><div><strong>{knownQualification.length ? qualified : 'N/D'}</strong><span>{knownQualification.length ? `Calificadas · dato disponible en ${knownQualification.length} leads` : 'Calificación no incluida en la API'}</span></div></Card>
+    <SectionHeading
+      title="Pipeline comercial"
+      subtitle="Recorrido y ubicación actual de los leads según las seis etapas que reporta Prospektia."
+    />
+    <div className="pipeline-note"><CircleHelp size={16} /><span>La API solo guarda la etapa actual, no el historial de transiciones. “Alcance acumulado” es una aproximación: cuenta leads cuya etapa actual es igual o posterior a cada paso.</span></div>
+    {missingStage > 0 && <div className="reconciliation-alert" role="alert"><AlertTriangle size={18} /><div><strong>Hay leads sin etapa API utilizable</strong><p>{missingStage} de {leads.length} registros no se pueden ubicar en el embudo.</p></div></div>}
+
+    <div className="pipeline-summary-grid">
+      <Card><span>Leads ubicados en una etapa API</span><strong>{stageTracked.toLocaleString('es-SV')}</strong><small>Recuento conciliado con la etapa actual de los registros filtrados.</small></Card>
+      <Card><span>En proceso dentro del pipeline</span><strong>{stages.reduce((sum, stage) => sum + stage.open, 0).toLocaleString('es-SV')}</strong><small>Abiertos agrupados una sola vez por su etapa actual.</small></Card>
+    </div>
+
+    <Card className="stage-funnel-card">
+      <SectionHeading title="Avance acumulado por etapa" subtitle="La barra desciende de acuerdo con la etapa actual registrada; no representa eventos históricos observados." />
+      <div className="stage-funnel-list">
+        {stages.map((stage, index) => {
+          const previous = index ? stages[index - 1].reached : stage.reached
+          const continuation = previous ? stage.reached / previous * 100 : 0
+          return <div className="stage-funnel-row" key={stage.stage}>
+            <div className="stage-funnel-shape-wrap">
+              <div className="stage-funnel-shape" style={{ width: `${Math.max(70, stage.reached / maxReached * 100)}%`, backgroundColor: colors[index] }}>
+                <span className="stage-funnel-number">{String(stage.stage).padStart(2, '0')}</span>
+                <div><strong>{stage.label}</strong><small>Alcance acumulado aproximado</small></div>
+                <strong className="stage-funnel-count">{stage.reached.toLocaleString('es-SV')}</strong>
+              </div>
+              <div className="stage-funnel-stats"><span>{stage.current.toLocaleString('es-SV')} actualmente aquí</span><span>{stage.open.toLocaleString('es-SV')} abiertos</span><span>{index ? `${continuation.toFixed(1)}% vs. etapa anterior` : 'Base del embudo'}</span></div>
+            </div>
+            <details className="stage-lead-details">
+              <summary><span>Ver {stage.current.toLocaleString('es-SV')} leads ubicados aquí</span><ChevronDown size={15} /></summary>
+              {stage.leads.length ? <TableWrap><thead><tr><th>Lead</th><th>Ejecutivo</th><th>Estado</th></tr></thead><tbody>
+                {stage.leads.map((lead) => <tr key={lead.id}><td><strong>#{lead.id}</strong></td><td>{lead.asesor}</td><td><Badge state={lead.estado} /></td></tr>)}
+              </tbody></TableWrap> : <p className="stage-empty">No hay leads en la etapa actual con los filtros seleccionados.</p>}
+            </details>
+          </div>
+        })}
+      </div>
+    </Card>
   </div>
 }

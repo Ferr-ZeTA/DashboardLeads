@@ -3,11 +3,37 @@ import { isOverdue, monthValue } from './dates.js'
 
 export const OPEN_STATES = ['activo', 'en_espera', 'detenido']
 
+export const API_STAGE_LABELS = [
+  'Asignación',
+  'Reunión',
+  'Demo',
+  'Envío de propuesta',
+  'Seguimiento',
+  'Cierre',
+]
+
+export function buildStageFunnel(leads) {
+  const apiLeads = leads.filter((lead) => Number.isFinite(lead.apiStage))
+
+  return API_STAGE_LABELS.map((label, index) => {
+    const stage = index + 1
+    const currentStageLeads = apiLeads.filter((lead) => lead.apiStage === stage)
+    return {
+      stage,
+      label,
+      reached: apiLeads.filter((lead) => lead.apiStage >= stage).length,
+      current: currentStageLeads.length,
+      open: currentStageLeads.filter((lead) => OPEN_STATES.includes(lead.estado)).length,
+      leads: currentStageLeads,
+    }
+  })
+}
+
 export function resumenBase(leads, filters) {
   return leads.filter((lead) => {
     if (filters.filterEjecutivo && lead.asesor !== filters.filterEjecutivo) return false
     if (filters.filterPais && lead.pais !== filters.filterPais) return false
-    if (filters.filterMes && monthValue(lead.proximaGestion ?? lead.fechaReunion) !== filters.filterMes) return false
+    if (filters.filterMes && monthValue(lead.proximaGestion) !== filters.filterMes) return false
     return true
   })
 }
@@ -24,6 +50,10 @@ export function calculateMetrics(leads, now = new Date()) {
   const reasonOutsideLost = leads.filter((lead) => lead.estado !== 'perdido' && lead.motivo).length
   const lostWithManualReason = leads.filter((lead) => lead.estado === 'perdido' && lead.motivo).length
   const reasonDifference = perdidos - lostWithManualReason
+  const openWithClosedOutcome = leads.filter((lead) =>
+    OPEN_STATES.includes(lead.estado) &&
+    ['perdida', 'cerrada'].includes(lead.raw?.resultado_venta),
+  ).length
 
   if (stateDifference !== 0) {
     reconciliationIssues.push({
@@ -39,6 +69,13 @@ export function calculateMetrics(leads, now = new Date()) {
       message: `${lostWithoutReason} lead(s) perdido(s) sin motivo y ${reasonOutsideLost} motivo(s) fuera de un lead perdido.`,
     })
   }
+  if (openWithClosedOutcome > 0) {
+    reconciliationIssues.push({
+      code: 'status_outcome_conflict',
+      difference: openWithClosedOutcome,
+      message: `${openWithClosedOutcome} lead(s) tienen estado abierto en el API pero un resultado de venta cerrado; se conservan como abiertos según status.`,
+    })
+  }
 
   return {
     total,
@@ -47,6 +84,10 @@ export function calculateMetrics(leads, now = new Date()) {
     perdidos,
     invalidos,
     tasaCierre: total ? ganados / total : 0,
+    cierresDecididos: ganados + perdidos,
+    diferenciaEstados: stateDifference,
+    perdidosSinMotivo: lostWithoutReason,
+    resultadoEstadoConflictivo: openWithClosedOutcome,
     vencidos: leads.filter((lead) => OPEN_STATES.includes(lead.estado) && isOverdue(lead.proximaGestion, now)).length,
     reconciliationIssues,
   }
@@ -73,13 +114,24 @@ export function parseLead(value, index) {
       throw new Error(`El campo ${field} del lead ${id} debe ser texto.`)
     }
   }
+  for (const field of ['comentarioGestion', 'comentarioReunion', 'apiStageLabel', 'clientId', 'clientName']) {
+    if (value[field] != null && typeof value[field] !== 'string') {
+      throw new Error(`El campo ${field} del lead ${id} debe ser texto.`)
+    }
+  }
   if (value.calificado != null && typeof value.calificado !== 'boolean') {
     throw new Error(`El campo calificado del lead ${id} debe ser booleano.`)
   }
-  for (const field of ['calificacionConocida', 'maxEtapaConocida']) {
+  for (const field of ['calificacionConocida', 'maxEtapaConocida', 'pendienteFirma']) {
     if (value[field] != null && typeof value[field] !== 'boolean') {
       throw new Error(`El campo ${field} del lead ${id} debe ser booleano.`)
     }
+  }
+  if (value.radiosEnComentario != null && (!Number.isInteger(value.radiosEnComentario) || value.radiosEnComentario < 0)) {
+    throw new Error(`El campo radiosEnComentario del lead ${id} debe ser un entero no negativo.`)
+  }
+  if (value.cantidadEquipos != null && (!Number.isInteger(value.cantidadEquipos) || value.cantidadEquipos < 1 || value.cantidadEquipos > 999)) {
+    throw new Error(`El campo cantidadEquipos del lead ${id} debe ser un entero entre 1 y 999.`)
   }
 
   const optionalBoolean = (field) => {
@@ -93,6 +145,13 @@ export function parseLead(value, index) {
     if (candidate == null || candidate === '') return undefined
     if (typeof candidate !== 'string' && typeof candidate !== 'number') {
       throw new Error(`El campo ${field} del lead ${id} debe ser una fecha válida.`)
+    }
+    if (typeof candidate === 'string') {
+      const dateOnly = normalizeDateOnly(candidate)
+      if (dateOnly) return dateOnly
+      if (/^\d{4}-\d{2}-\d{2}$/.test(candidate) || /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(candidate)) {
+        throw new Error(`El campo ${field} del lead ${id} contiene una fecha inválida.`)
+      }
     }
     const date = new Date(candidate)
     if (Number.isNaN(date.getTime())) throw new Error(`El campo ${field} del lead ${id} contiene una fecha inválida.`)
@@ -115,12 +174,20 @@ export function parseLead(value, index) {
       : typeof value.calificado === 'boolean',
     motivo: value.motivo ?? undefined,
     proximaGestion: optionalDate('proximaGestion'),
+    fechaSeguimiento: optionalDate('fechaSeguimiento'),
+    comentarioGestion: value.comentarioGestion?.trim() || undefined,
+    comentarioReunion: value.comentarioReunion?.trim() || undefined,
     fechaReunion: optionalDate('fechaReunion'),
     fcFecha: optionalDate('fcFecha'),
     fcIncluir: optionalBoolean('fcIncluir'),
     fcExcluir: optionalBoolean('fcExcluir'),
     fcIntentar: optionalBoolean('fcIntentar'),
+    pendienteFirma: value.pendienteFirma ?? false,
+    radiosEnComentario: value.radiosEnComentario,
+    cantidadEquipos: value.cantidadEquipos,
     producto: value.producto,
+    clientId: value.clientId?.trim() || undefined,
+    clientName: value.clientName?.trim() || undefined,
     raw: value.raw,
     apiStage: value.apiStage,
     apiStageLabel: value.apiStageLabel,
@@ -150,9 +217,11 @@ export function parseLeads(payload) {
 }
 
 function meetingState(row) {
-  if (row.resultado_venta === 'perdida') return 'perdido'
-  if (row.resultado_venta === 'cerrada') return 'ganado'
-  if (row.status === 'cerrado') return 'invalido'
+  if (row.status === 'cerrado') {
+    if (row.resultado_venta === 'perdida') return 'perdido'
+    if (row.resultado_venta === 'cerrada') return 'ganado'
+    return 'invalido'
+  }
   if (row.status === 'no_agendado') return 'en_espera'
   if (row.status === 'stage_2_overdue') return 'detenido'
   if (row.status === 'en_proceso') return 'activo'
@@ -193,11 +262,185 @@ function lossReason(category) {
   return 'otro'
 }
 
+function getFeedbackTexts(row, currentStageOnly = false) {
+  const texts = []
+  if (!currentStageOnly && typeof row.advisor_feedback === 'string' && row.advisor_feedback.trim()) {
+    texts.push(row.advisor_feedback.trim())
+  }
+
+  const stageFeedback = row.stage_feedback_json
+  if (stageFeedback && typeof stageFeedback === 'object' && !Array.isArray(stageFeedback)) {
+    const currentStage = Number(row.opportunity_stage)
+    const stages = Object.entries(stageFeedback)
+      .filter(([stage]) => !currentStageOnly || Number(stage) === currentStage)
+      .map(([, value]) => value)
+    for (const stage of stages) {
+      if (!stage || typeof stage !== 'object' || Array.isArray(stage)) continue
+      for (const [key, value] of Object.entries(stage)) {
+        if (typeof value === 'string' && value.trim() && /feedback|retroalimentacion|comentario|notas|notes|respuesta_cliente|productos_ofrecidos/i.test(key)) {
+          texts.push(value.trim())
+        }
+        if (key === 'proxima_gestion' && value && typeof value === 'object' && typeof value.notas === 'string' && value.notas.trim()) {
+          texts.push(value.notas.trim())
+        }
+      }
+    }
+  }
+
+  return [...new Set(texts)]
+}
+
+function latestNextManagement(row) {
+  const stageFeedback = row.stage_feedback_json
+  if (!stageFeedback || typeof stageFeedback !== 'object' || Array.isArray(stageFeedback)) return undefined
+
+  const candidates = Object.entries(stageFeedback).flatMap(([stage, value]) => {
+    const item = value?.proxima_gestion
+    if (!item || typeof item !== 'object' || Array.isArray(item)) return []
+    const date = item.fecha_hora
+    if ((typeof date !== 'string' && typeof date !== 'number') || Number.isNaN(new Date(date).getTime())) return []
+    const createdAt = item.created_at
+    return [{
+      date: new Date(date).toISOString(),
+      comment: typeof item.notas === 'string' ? item.notas.trim() : '',
+      stage: Number(stage) || 0,
+      createdAt: createdAt && !Number.isNaN(new Date(createdAt).getTime())
+        ? new Date(createdAt).getTime()
+        : 0,
+    }]
+  })
+
+  return candidates.sort((a, b) => b.createdAt - a.createdAt || b.stage - a.stage)[0]
+}
+
+function normalizeDateOnly(value) {
+  if (typeof value !== 'string') return undefined
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/)
+    ?? value.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/)
+  if (!match) return undefined
+
+  const [, first, second, third] = match
+  const slashDate = value.includes('/')
+  const year = Number(slashDate ? third : first)
+  const month = Number(second)
+  const day = Number(slashDate ? first : third)
+  const date = new Date(Date.UTC(year, month - 1, day))
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
+    return undefined
+  }
+  return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+}
+
+function meetingFeedback(row) {
+  const stages = row.stage_feedback_json
+  const stage = stages && typeof stages === 'object' && !Array.isArray(stages) ? stages['2'] : undefined
+  return stage && typeof stage === 'object' && !Array.isArray(stage) ? stage : undefined
+}
+
+function meetingDate(row) {
+  if (row.start_time) return row.start_time
+
+  const feedback = meetingFeedback(row)
+  const isoDate = feedback?.fecha_reunion_iso
+  const normalizedIsoDate = normalizeDateOnly(isoDate)
+  if (normalizedIsoDate) return normalizedIsoDate
+  if (typeof isoDate === 'string' && /^\d{4}-\d{2}-\d{2}T/.test(isoDate) && !Number.isNaN(new Date(isoDate).getTime())) {
+    return new Date(isoDate).toISOString()
+  }
+  return normalizeDateOnly(feedback?.fecha_reunion)
+}
+
+function meetingComment(row) {
+  const feedback = meetingFeedback(row)
+  for (const field of ['retroalimentacion', 'notes']) {
+    const comment = feedback?.[field]
+    if (typeof comment === 'string' && comment.trim()) return comment.trim()
+  }
+  return undefined
+}
+
+function reportedRadioCount(texts) {
+  const patterns = [
+    /\b(\d{1,3})\s*(?:unidades?\s+de\s+)?radios?\b/gi,
+    /\bradios?\s*(?:x|:|de|por)?\s*(\d{1,3})\b/gi,
+  ]
+  const quantities = []
+  for (const text of texts) {
+    for (const pattern of patterns) {
+      pattern.lastIndex = 0
+      for (const match of text.matchAll(pattern)) {
+        const quantity = Number(match[1])
+        if (Number.isInteger(quantity) && quantity > 0 && quantity <= 999) quantities.push(quantity)
+      }
+    }
+  }
+
+  return quantities.length ? Math.max(...quantities) : undefined
+}
+
+function parseEquipmentCount(texts) {
+  const patterns = [
+    /\b(\d{1,3})\s*(?:unidades?\s+de\s+)?(?:radios?|equipos?|terminales?)\b/gi,
+    /\b(?:radios?|equipos?|terminales?)\s*(?:x|:|de|por)?\s*(\d{1,3})\b/gi,
+  ]
+  const quantities = []
+  for (const text of texts) {
+    for (const pattern of patterns) {
+      pattern.lastIndex = 0
+      for (const match of text.matchAll(pattern)) {
+        const quantity = Number(match[1])
+        if (Number.isInteger(quantity) && quantity > 0 && quantity <= 999) quantities.push(quantity)
+      }
+    }
+  }
+  return quantities.length ? quantities[quantities.length - 1] : undefined
+}
+
+function structuredEquipmentCount(row, currentStageOnly = false) {
+  const stages = row.stage_feedback_json
+  if (!stages || typeof stages !== 'object' || Array.isArray(stages)) return undefined
+
+  const stageEntries = Object.entries(stages)
+    .filter(([stage]) => !currentStageOnly || Number(stage) === Number(row.opportunity_stage))
+    .sort(([left], [right]) => Number(right) - Number(left))
+  for (const [, feedback] of stageEntries) {
+    if (!feedback || typeof feedback !== 'object' || Array.isArray(feedback)) continue
+    for (const field of ['cantidad_equipos', 'equipos', 'cantidad_oferta']) {
+      const candidate = feedback[field]
+      const parsed = typeof candidate === 'number'
+        ? candidate
+        : typeof candidate === 'string' && /^\s*\d{1,3}\s*$/.test(candidate)
+          ? Number(candidate)
+          : undefined
+      if (Number.isInteger(parsed) && parsed > 0 && parsed <= 999) return parsed
+    }
+  }
+  return undefined
+}
+
+function hasPendingSignature(texts) {
+  const normalized = texts.join(' ').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+  return /\bpendient[ea]s?\b.{0,40}\bfirm(?:a|ar|e|en|ado|ada|ados|adas)\b|\bfirm(?:a|ar|e|en|ado|ada|ados|adas)\b.{0,40}\bpendient[ea]s?\b|\bpor\s+firmar\b|\ben\s+firma\b/.test(normalized)
+}
+
 export function mapMeetingLead(row, index) {
   const estado = meetingState(row)
   const etapa = meetingStage(row)
   const country = row.pais ?? row.country
   const pais = country === 'GT' ? 'Guatemala' : country === 'SV' ? 'El Salvador' : country
+  const management = latestNextManagement(row)
+  const directManagement = row.proximaGestion ?? row.proxima_gestion
+  const directDate = directManagement && typeof directManagement === 'object'
+    ? directManagement.fecha_hora
+    : directManagement
+  const directComment = directManagement && typeof directManagement === 'object' && typeof directManagement.notas === 'string'
+    ? directManagement.notas
+    : ''
+  const feedbackTexts = getFeedbackTexts(row)
+  const currentStageTexts = getFeedbackTexts(row, true)
+  const apiStageLabel = typeof row.opportunity_stage_label === 'string'
+    ? row.opportunity_stage_label.trim()
+    : API_STAGE_LABELS[Number(row.opportunity_stage) - 1] ?? ''
 
   return parseLead({
     id: row.id,
@@ -210,10 +453,21 @@ export function mapMeetingLead(row, index) {
     calificado: typeof row.calificado === 'boolean' ? row.calificado : false,
     calificacionConocida: typeof row.calificado === 'boolean',
     motivo: estado === 'perdido' ? lossReason(row.categoria_cierre) : undefined,
-    proximaGestion: row.proximaGestion ?? row.proxima_gestion ?? undefined,
-    fechaReunion: row.start_time ?? undefined,
+    proximaGestion: directDate ?? management?.date,
+    fechaSeguimiento: normalizeDateOnly(row.stage_feedback_json?.['5']?.fecha_seguimiento),
+    comentarioGestion: directComment || management?.comment,
+    fechaReunion: meetingDate(row),
+    comentarioReunion: meetingComment(row),
     apiStage: Number(row.opportunity_stage),
-    apiStageLabel: row.opportunity_stage_label ?? '',
+    apiStageLabel,
+    pendienteFirma: Number(row.opportunity_stage) >= 5 && hasPendingSignature(getFeedbackTexts(row, true)),
+    radiosEnComentario: estado === 'ganado' ? reportedRadioCount(feedbackTexts) : undefined,
+    cantidadEquipos: structuredEquipmentCount(row, true)
+      ?? parseEquipmentCount(currentStageTexts)
+      ?? structuredEquipmentCount(row)
+      ?? parseEquipmentCount(feedbackTexts),
+    clientId: typeof row.client_id === 'string' ? row.client_id : undefined,
+    clientName: typeof row.client_name === 'string' ? row.client_name : undefined,
     producto: estado === 'ganado' ? row.rubro || undefined : undefined,
     raw: row,
   }, index)

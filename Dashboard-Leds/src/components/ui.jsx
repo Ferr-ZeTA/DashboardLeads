@@ -25,6 +25,6 @@ export function ErrorBanner({ message, onRetry }) {
   return <div className="error-banner" role="alert"><AlertTriangle size={19} /><div><strong>No se pudo actualizar el dashboard</strong><p>{message}</p><small>Verifica el proxy y la variable de servidor RED_API_KEY.</small></div><button className="button button-outline" onClick={onRetry}>Reintentar</button></div>
 }
 
-export function TableWrap({ children }) {
-  return <div className="table-scroll"><table>{children}</table></div>
+export function TableWrap({ children, className = '' }) {
+  return <div className={`table-scroll ${className}`.trim()}><table>{children}</table></div>
 }

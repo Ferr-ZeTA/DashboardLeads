@@ -1,16 +1,6 @@
-import { BarChart3, CircleHelp, Percent, Tag, Target, Trophy } from 'lucide-react'
+import { AlertTriangle, BarChart3, Check, CircleHelp, Percent, Tag, Target, Trophy } from 'lucide-react'
 import { Card, EmptyState, SectionHeading, TableWrap } from '../components/ui.jsx'
-import { lossReasonLabel } from '../utils/leads.js'
-
-function rubricName(product) {
-  if (typeof product === 'string') return product.trim()
-  if (product && typeof product === 'object') {
-    for (const key of ['nombre', 'name', 'producto', 'equipo', 'descripcion']) {
-      if (typeof product[key] === 'string' && product[key].trim()) return product[key].trim()
-    }
-  }
-  return ''
-}
+import { lossReasonLabel, OPEN_STATES, stageLabel } from '../utils/leads.js'
 
 function ResultKpi({ label, value, detail, icon: Icon, tone }) {
   return <Card className="result-kpi">
@@ -20,10 +10,16 @@ function ResultKpi({ label, value, detail, icon: Icon, tone }) {
   </Card>
 }
 
-export function ResultadosView({ leads }) {
+export function ResultadosView({ leads, metrics }) {
   const lost = leads.filter((lead) => lead.estado === 'perdido')
   const won = leads.filter((lead) => lead.estado === 'ganado')
-  const closed = lost.length + won.length
+  const radioRows = won.filter((lead) => Number.isInteger(lead.radiosEnComentario) && lead.radiosEnComentario > 0)
+  const reportedRadios = radioRows.reduce((sum, lead) => sum + lead.radiosEnComentario, 0)
+  const pendingSignature = leads.filter((lead) =>
+    OPEN_STATES.includes(lead.estado)
+    && lead.pendienteFirma
+    && !['perdida', 'cerrada'].includes(lead.raw?.resultado_venta),
+  )
   const reasonCounts = new Map()
 
   for (const lead of lost) {
@@ -32,48 +28,56 @@ export function ResultadosView({ leads }) {
   }
 
   const reasonRows = [...reasonCounts.entries()].sort((a, b) => b[1] - a[1])
+  const categorizedLosses = reasonRows.reduce((sum, [, count]) => sum + count, 0)
   const maxReason = Math.max(1, ...reasonRows.map(([, count]) => count))
   const reviewCount = (reasonCounts.get('otro') ?? 0) + (reasonCounts.get('sin_motivo') ?? 0)
   const classifiedCount = lost.length - reviewCount
-
-  const rubricCounts = new Map()
-  let winsWithoutRubric = 0
-  for (const lead of won) {
-    const products = Array.isArray(lead.producto)
-      ? lead.producto.map(rubricName).filter(Boolean)
-      : [rubricName(lead.producto)].filter(Boolean)
-    const uniqueRubrics = new Set(products)
-    if (!uniqueRubrics.size) {
-      winsWithoutRubric += 1
-      continue
-    }
-    for (const rubric of uniqueRubrics) {
-      rubricCounts.set(rubric, (rubricCounts.get(rubric) ?? 0) + 1)
-    }
+  const otherReasonCategories = new Map()
+  for (const lead of lost.filter((item) => item.motivo === 'otro')) {
+    const rawReason = typeof lead.raw?.categoria_cierre === 'string' && lead.raw.categoria_cierre.trim()
+      ? lead.raw.categoria_cierre.trim()
+      : 'Sin categoría informativa'
+    const categoryLeads = otherReasonCategories.get(rawReason) ?? []
+    categoryLeads.push(lead)
+    otherReasonCategories.set(rawReason, categoryLeads)
   }
+  const otherReasonRows = [...otherReasonCategories.entries()].sort((a, b) => b[1].length - a[1].length)
 
-  const rubrics = [...rubricCounts.entries()].sort((a, b) => b[1] - a[1])
+  const reconciled = metrics.total === leads.length
+    && metrics.ganados === won.length
+    && metrics.perdidos === lost.length
+    && categorizedLosses === metrics.perdidos
+  const resultIssues = metrics.reconciliationIssues
 
   return <div className="view-stack results-view">
     <SectionHeading
       title="Resultados comerciales"
-      subtitle="Consulta qué oportunidades se ganaron, cuáles se perdieron y qué rubros aparecen en los cierres."
+      subtitle="Revisa cierres, motivos de pérdida, radios documentadas y oportunidades pendientes de firma."
     />
 
     <div className="results-purpose">
       <span className="results-purpose-icon"><BarChart3 size={18} /></span>
       <div>
         <strong>¿Para qué sirve esta vista?</strong>
-        <p>Resume los cierres de los leads incluidos en los filtros globales. Úsala para detectar patrones de pérdida y revisar los rubros declarados en los ganados.</p>
+        <p>Resume los cierres de los leads incluidos en los filtros globales. Las unidades de radios solo se cuentan cuando existe una cantidad explícita en comentarios de un lead ganado.</p>
       </div>
-      <span className="results-filter-note">Respeta los filtros de ejecutivo, país y mes de reunión</span>
+      <span className="results-filter-note">Respeta los filtros de ejecutivo, país y mes de próxima gestión</span>
     </div>
 
     <div className="results-kpis">
-      <ResultKpi label="Leads analizados" value={leads.length.toLocaleString('es-SV')} detail="Todos los leads de la selección actual" icon={BarChart3} tone="pink" />
-      <ResultKpi label="Cierres registrados" value={closed.toLocaleString('es-SV')} detail={`${lost.length.toLocaleString('es-SV')} perdidos + ${won.length.toLocaleString('es-SV')} ganados`} icon={Target} tone="blue" />
-      <ResultKpi label="Ganados" value={won.length.toLocaleString('es-SV')} detail="Leads con resultado de venta cerrada" icon={Trophy} tone="green" />
-      <ResultKpi label="Conversión de cierres" value={`${closed ? (won.length / closed * 100).toFixed(1) : '0.0'}%`} detail="Ganados ÷ (ganados + perdidos)" icon={Percent} tone="amber" />
+      <ResultKpi label="Leads analizados" value={metrics.total.toLocaleString('es-SV')} detail="Igual al total de leads del Resumen" icon={BarChart3} tone="pink" />
+      <ResultKpi label="Cierres registrados" value={metrics.cierresDecididos.toLocaleString('es-SV')} detail={`${metrics.perdidos.toLocaleString('es-SV')} perdidos + ${metrics.ganados.toLocaleString('es-SV')} ganados`} icon={Target} tone="blue" />
+      <ResultKpi label="Ganados" value={metrics.ganados.toLocaleString('es-SV')} detail="Igual a los ganados del Resumen" icon={Trophy} tone="green" />
+      <ResultKpi label="Conversión de cierres" value={`${metrics.cierresDecididos ? (metrics.ganados / metrics.cierresDecididos * 100).toFixed(1) : '0.0'}%`} detail="Ganados ÷ (ganados + perdidos)" icon={Percent} tone="amber" />
+    </div>
+    <div className={`results-reconciliation ${reconciled && !resultIssues.length ? 'is-reconciled' : 'has-reconciliation-issue'}`} role={resultIssues.length ? 'alert' : 'status'}>
+      {resultIssues.length ? <AlertTriangle size={17} /> : <Check size={17} />}
+      <div>
+        <strong>{reconciled ? 'Las cifras cuadran con Resumen' : 'Los totales no coinciden entre las vistas'}</strong>
+        {resultIssues.length > 0 && <p>También se detectaron alertas de calidad o conflictos en los campos originales del API:</p>}
+        <p>Total {metrics.total.toLocaleString('es-SV')} · Ganados {metrics.ganados.toLocaleString('es-SV')} · Perdidos {metrics.perdidos.toLocaleString('es-SV')} · Categorías de pérdida {categorizedLosses.toLocaleString('es-SV')}</p>
+        {resultIssues.map((issue) => <p key={issue.code}>{issue.message}</p>)}
+      </div>
     </div>
 
     <div className="results-grid">
@@ -106,6 +110,15 @@ export function ResultadosView({ leads }) {
               <div className="reason-track" role="img" aria-label={`${label}: ${count} de ${lost.length} leads perdidos`}>
                 <span style={{ width: `${count / maxReason * 100}%` }} />
               </div>
+              {reason === 'otro' && <details className="other-reasons-details">
+                <summary>Desglosar {count.toLocaleString('es-SV')} cierres agrupados</summary>
+                <div className="other-reasons-list">
+                  {otherReasonRows.map(([rawReason, categoryLeads]) => <details key={rawReason}>
+                    <summary><span>{rawReason}</span><strong>{categoryLeads.length.toLocaleString('es-SV')}</strong></summary>
+                    <ul>{categoryLeads.map((lead) => <li key={lead.id}>#{lead.id} · {lead.asesor}</li>)}</ul>
+                  </details>)}
+                </div>
+              </details>}
             </div>
           })}
         </div> : <EmptyState title="No hay leads perdidos" body="Los filtros actuales no contienen oportunidades perdidas." />}
@@ -114,27 +127,32 @@ export function ResultadosView({ leads }) {
 
       <Card className="results-panel">
         <SectionHeading
-          title="¿Qué rubros aparecen en los ganados?"
-          subtitle="Conteo de leads ganados asociados a cada rubro registrado."
+          title="Equipos por oportunidad"
+          subtitle="Radios mencionadas en cierres ganados y oportunidades que aún esperan firma."
         />
         <div className="results-explainer results-explainer-green">
           <Tag size={15} />
-          <p>El rubro no equivale a una venta ni a unidades de equipo. La API no entrega un detalle estructurado de productos vendidos.</p>
+          <p>La cantidad se extrae de menciones explícitas como “4 radios” en comentarios de leads ganados. Para no duplicar una misma oportunidad, se toma la mayor cantidad encontrada por lead. Un comentario sin cantidad no se interpreta como cero.</p>
         </div>
-        <div className="results-panel-summary">
-          <strong>{won.length.toLocaleString('es-SV')}</strong>
-          <span>cierres ganados · {winsWithoutRubric.toLocaleString('es-SV')} sin rubro registrado</span>
+        <div className="equipment-metrics">
+          <div><span>Radios reportadas</span><strong>{reportedRadios.toLocaleString('es-SV')}</strong><small>En {radioRows.length.toLocaleString('es-SV')} oportunidades ganadas con cantidad explícita</small></div>
+          <div><span>Pendientes de firma</span><strong>{pendingSignature.length.toLocaleString('es-SV')}</strong><small>Leads abiertos con esa señal en comentarios del API</small></div>
         </div>
-        {rubrics.length ? <TableWrap>
-          <thead><tr><th>Rubro informado</th><th>Leads ganados</th></tr></thead>
-          <tbody>{rubrics.map(([rubric, count]) => <tr key={rubric}>
-            <td><span className="table-leading"><Tag size={15} />{rubric}</span></td>
-            <td><strong>{count.toLocaleString('es-SV')}</strong></td>
-          </tr>)}</tbody>
-        </TableWrap> : <EmptyState title="Sin rubros disponibles" body="No se encontró un rubro registrado en los cierres ganados de esta selección." />}
+        <details className="equipment-details">
+          <summary>Ver {radioRows.length.toLocaleString('es-SV')} oportunidades ganadas con radios reportadas</summary>
+          {radioRows.length ? <TableWrap><thead><tr><th>Lead</th><th>Ejecutivo</th><th>Etapa API</th><th>Radios mencionadas</th></tr></thead><tbody>
+            {radioRows.map((lead) => <tr key={lead.id}><td><strong>#{lead.id}</strong></td><td>{lead.asesor}</td><td>{lead.apiStageLabel || stageLabel(lead.etapa)}</td><td><strong>{lead.radiosEnComentario}</strong></td></tr>)}
+          </tbody></TableWrap> : <EmptyState title="Sin cantidades explícitas" body="Los comentarios de los cierres ganados seleccionados no incluyen cantidades de radios reconocibles." />}
+        </details>
+        <details className="equipment-details">
+          <summary>Ver {pendingSignature.length.toLocaleString('es-SV')} oportunidades pendientes de firma</summary>
+          {pendingSignature.length ? <TableWrap><thead><tr><th>Lead</th><th>Ejecutivo</th><th>Etapa API</th></tr></thead><tbody>
+            {pendingSignature.map((lead) => <tr key={lead.id}><td><strong>#{lead.id}</strong></td><td>{lead.asesor}</td><td>{lead.apiStageLabel || stageLabel(lead.etapa)}</td></tr>)}
+          </tbody></TableWrap> : <EmptyState title="Sin pendientes de firma identificados" body="No hay leads abiertos con una mención explícita de firma pendiente en la selección actual." />}
+        </details>
       </Card>
     </div>
 
-    <div className="results-highlight"><CircleHelp size={16} /><span>Esta vista describe los datos recibidos del API; no confirma por sí sola la causa comercial de una pérdida ni los productos realmente vendidos.</span></div>
+    <div className="results-highlight"><CircleHelp size={16} /><span>La cantidad de radios es una extracción conservadora del texto de comentarios, no un campo estructurado de unidades vendidas. Los leads sin cantidad explícita no se suman ni se consideran cero.</span></div>
   </div>
 }
