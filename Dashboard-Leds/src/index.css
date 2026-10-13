@@ -336,16 +336,31 @@ button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-v
 .stage-lead-details summary:hover { background: #202b3d; color: #f2f5fa; }
 .stage-lead-details[open] summary { color: #ff6682; }
 .other-reasons-details { margin-top: 8px; }
-.other-reasons-details>summary { width: fit-content; cursor: pointer; color: #8c6472; font-size: 9px; font-weight: 600; list-style: none; }
+.other-reasons-details>summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; width: 100%; padding: 8px 10px; border: 1px solid #3b2d3b; border-radius: 7px; background: #211b29; cursor: pointer; color: #ff9aaf; font-size: 9px; font-weight: 650; list-style: none; }
 .other-reasons-details>summary::-webkit-details-marker,.other-reasons-list summary::-webkit-details-marker { display: none; }
-.other-reasons-details>summary::before { content: "＋"; margin-right: 5px; color: #a8405b; }
+.other-reasons-details>summary::before { content: "＋"; color: #ff6682; }
 .other-reasons-details[open]>summary::before { content: "−"; }
-.other-reasons-list { display: grid; gap: 4px; margin-top: 8px; padding: 8px; border: 1px solid #f1dfe5; border-radius: 8px; background: #fffafd; }
-.other-reasons-list>details { border-bottom: 1px solid #f3e8eb; }
-.other-reasons-list>details:last-child { border-bottom: 0; }
-.other-reasons-list summary { display: flex; justify-content: space-between; gap: 12px; padding: 6px 2px; cursor: pointer; color: #475569; font-size: 9px; list-style: none; text-align: left; }
-.other-reasons-list summary strong { color: #9f3653; }
-.other-reasons-list ul { display: flex; flex-wrap: wrap; gap: 5px 13px; margin: 0 0 7px; padding-left: 16px; color: #7b8797; font-size: 9px; text-align: left; }
+.other-reasons-details>summary span { flex: 1; }
+.other-reasons-details>summary strong { color: #c4adbb; font-size: 8px; font-weight: 500; }
+.other-reasons-list { display: grid; gap: 7px; margin-top: 8px; padding: 8px; border: 1px solid #303b4e; border-radius: 8px; background: #111a29; }
+.other-reason-group { overflow: hidden; border: 1px solid #2c384b; border-radius: 7px; background: #151f30; }
+.other-reason-group>summary { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 10px; cursor: pointer; color: #e1e7f0; font-size: 9px; list-style: none; text-align: left; }
+.other-reason-group>summary::before { content: "›"; color: #ff6682; font-size: 15px; line-height: 10px; }
+.other-reason-group[open]>summary::before { content: "⌄"; }
+.other-reason-group>summary span { flex: 1; overflow-wrap: anywhere; }
+.other-reason-group>summary strong { flex: 0 0 auto; padding: 3px 7px; border-radius: 10px; background: #382230; color: #ff9aaf; font-size: 8px; font-weight: 600; }
+.other-reason-leads { padding: 0 9px 8px; }
+.other-reason-table-scroll { width: 100%; overflow-x: auto; }
+.results-panel .other-reason-table { min-width: 360px; table-layout: fixed; }
+.results-panel .other-reason-table th,.results-panel .other-reason-table td { padding: 7px 8px; border-color: #2c384b; font-size: 8px; text-align: left; }
+.results-panel .other-reason-table th { color: #8f9db2; font-weight: 600; }
+.results-panel .other-reason-table td { color: #c0cad8; overflow-wrap: anywhere; }
+.results-panel .other-reason-table th:first-child,.results-panel .other-reason-table td:first-child { width: 42%; }
+.results-panel .other-reason-table th:nth-child(2),.results-panel .other-reason-table td:nth-child(2) { width: 25%; }
+.results-panel .other-reason-table td strong { color: #f2f5fa; }
+.other-reason-lead-id { display: inline-block; padding: 3px 6px; border: 1px solid #34435b; border-radius: 5px; background: #1c293d; color: #8ecbff; font-size: 8px; font-weight: 600; }
+.other-reason-pagination { margin-top: 7px; padding-top: 7px; border-color: #2c384b; font-size: 8px; }
+.other-reason-pagination .page-button { width: 24px; height: 24px; border-color: #354158; background: #1b2739; color: #c3ccda; }
 .forecast-date-input { min-width: 137px; padding: 6px; border: 1px solid #dbe4ee; border-radius: 6px; background: white; color: #334155; font-size: 10px; }
 .forecast-action { padding: 6px 9px; border: 1px solid transparent; border-radius: 6px; font-size: 9px; font-weight: 650; white-space: nowrap; }
 .forecast-action-exclude { border-color: #fecdd3; background: #fff1f2; color: #be123c; }

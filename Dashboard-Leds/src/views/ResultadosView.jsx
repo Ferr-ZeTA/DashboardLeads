@@ -1,6 +1,9 @@
-import { AlertTriangle, BarChart3, Check, ChevronDown, CircleHelp, Percent, Tag, Target, Trophy } from 'lucide-react'
+import { AlertTriangle, BarChart3, Check, ChevronDown, ChevronLeft, ChevronRight, CircleHelp, Percent, Tag, Target, Trophy } from 'lucide-react'
+import { useState } from 'react'
 import { Card, EmptyState, SectionHeading, TableWrap } from '../components/ui.jsx'
 import { leadDisplayId, lossReasonLabel, stageLabel } from '../utils/leads.js'
+
+const LOSS_REASON_PAGE_SIZE = 7
 
 function ResultKpi({ label, value, detail, icon: Icon, tone }) {
   return <Card className="result-kpi">
@@ -8,6 +11,36 @@ function ResultKpi({ label, value, detail, icon: Icon, tone }) {
     <strong>{value}</strong>
     <p>{detail}</p>
   </Card>
+}
+
+function LossReasonLeads({ rawReason, leads }) {
+  const [page, setPage] = useState(1)
+  const pages = Math.max(1, Math.ceil(leads.length / LOSS_REASON_PAGE_SIZE))
+  const currentPage = Math.min(page, pages)
+  const visibleLeads = leads.slice((currentPage - 1) * LOSS_REASON_PAGE_SIZE, currentPage * LOSS_REASON_PAGE_SIZE)
+
+  return <details className="other-reason-group">
+    <summary><span>{rawReason}</span><strong>{leads.length.toLocaleString('es-SV')} {leads.length === 1 ? 'lead' : 'leads'}</strong></summary>
+    <div className="other-reason-leads">
+      <div className="other-reason-table-scroll">
+        <table className="other-reason-table">
+          <thead><tr><th>Lead</th><th>ID del lead</th><th>Ejecutivo</th></tr></thead>
+          <tbody>{visibleLeads.map((lead) => <tr key={lead.id}>
+            <td><strong>{lead.clientName || 'Sin nombre en API'}</strong></td>
+            <td><span className="other-reason-lead-id">{leadDisplayId(lead)}</span></td>
+            <td>{lead.asesor || 'Sin asignar'}</td>
+          </tr>)}</tbody>
+        </table>
+      </div>
+      {pages > 1 && <div className="pagination other-reason-pagination">
+        <span>Mostrando {(currentPage - 1) * LOSS_REASON_PAGE_SIZE + 1}–{Math.min(currentPage * LOSS_REASON_PAGE_SIZE, leads.length)} de {leads.length} leads · Página {currentPage} de {pages}</span>
+        <div>
+          <button className="page-button" disabled={currentPage <= 1} onClick={() => setPage(currentPage - 1)} aria-label={`Página anterior de ${rawReason}`}><ChevronLeft size={16} /></button>
+          <button className="page-button" disabled={currentPage >= pages} onClick={() => setPage(currentPage + 1)} aria-label={`Página siguiente de ${rawReason}`}><ChevronRight size={16} /></button>
+        </div>
+      </div>}
+    </div>
+  </details>
 }
 
 export function ResultadosView({ leads, metrics }) {
@@ -107,12 +140,9 @@ export function ResultadosView({ leads, metrics }) {
                 <span style={{ width: `${count / maxReason * 100}%` }} />
               </div>
               {reason === 'otro' && <details className="other-reasons-details">
-                <summary>Ver valores originales de {count.toLocaleString('es-SV')} cierres</summary>
+                <summary><span>Ver valores originales</span><strong>{count.toLocaleString('es-SV')} cierres por revisar</strong></summary>
                 <div className="other-reasons-list">
-                  {otherReasonRows.map(([rawReason, categoryLeads]) => <details key={rawReason}>
-                    <summary><span>{rawReason}</span><strong>{categoryLeads.length.toLocaleString('es-SV')}</strong></summary>
-                    <ul>{categoryLeads.map((lead) => <li key={lead.id}>{lead.clientName || 'Sin nombre en API'} · {leadDisplayId(lead)} · {lead.asesor}</li>)}</ul>
-                  </details>)}
+                  {otherReasonRows.map(([rawReason, categoryLeads]) => <LossReasonLeads key={rawReason} rawReason={rawReason} leads={categoryLeads} />)}
                 </div>
               </details>}
             </div>
