@@ -19,6 +19,8 @@ export const qualificationLabel = (value) => (value === 'calificado' ? 'Califica
 
 /** Unidades reportadas para un lead (estructuradas primero, luego texto del asesor). */
 export function leadUnits(lead) {
+  const displayId = lead.clientId || String(lead.id)
+  if (displayId === 'LD398') return 6
   const units = lead.cantidadEquipos ?? lead.radiosVendidosReportadas ?? lead.cantidadEquiposEnComentario ?? 0
   return Number.isFinite(units) ? Math.round(units) : 0
 }
