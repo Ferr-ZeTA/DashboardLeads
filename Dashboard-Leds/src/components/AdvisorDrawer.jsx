@@ -118,7 +118,7 @@ export function AdvisorDrawer({ name, country, leads, month, onClose }) {
             </div>
             <span className="text-xs text-muted"><b className="text-ink">{formatNumber(own.length)}</b> leads en esta selección</span>
           </header>
-          <LeadTable className="advisor-table-scroll advisor-followups-scroll" leads={[...own].sort((a, b) => b.apiStage - a.apiStage)} columns={['lead', 'etapa', 'estado', 'fecha', 'comentario', 'unidadesRadicadas', 'detalle']} onLeadClick={setSelectedLead} />
+          <LeadTable className="advisor-table-scroll advisor-followups-scroll" leads={[...own].sort((a, b) => b.apiStage - a.apiStage)} columns={['lead', 'etapa', 'calificacion', 'estado', 'fecha', 'comentario', 'unidadesRadicadas', 'detalle']} onLeadClick={setSelectedLead} />
         </section>
 
         <div className="grid min-w-0 gap-3 xl:grid-cols-[minmax(0,.85fr)_minmax(0,1.15fr)]">
