@@ -4,7 +4,8 @@ import { FiltersContext } from './filtersContext.js'
 const EMPTY_FILTERS = {
   filterPais: null,
   filterEjecutivo: null,
-  filterMes: null,
+  filterMonthToDayMonth: null,
+  filterMonthToDayDay: null,
   filterTipoLead: null,
 }
 

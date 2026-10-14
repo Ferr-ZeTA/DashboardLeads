@@ -70,7 +70,6 @@ export function resumenBase(leads, filters) {
   return leads.filter((lead) => {
     if (!matchesFilter(filters.filterEjecutivo, lead.asesor)) return false
     if (!matchesFilter(filters.filterPais, lead.pais)) return false
-    if (!matchesFilter(filters.filterMes, leadReferenceMonth(lead))) return false
     if (!matchesFilter(filters.filterTipoLead, lead.tipoLead)) return false
     if (!matchesFilter(filters.filterEstado, lead.estado)) return false
     return true

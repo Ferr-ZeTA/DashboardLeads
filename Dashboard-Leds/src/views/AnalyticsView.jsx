@@ -128,6 +128,7 @@ export function AnalyticsView({ leads, summary, showAllFunnel }) {
               <div className="monthly-funnel-results" aria-label={`Resultados de ${group.label}`}>
                 <div><span>Radicados</span><strong>{formatNumber(groupSummary.won)}</strong></div>
                 <div><span>Unidades</span><strong>{formatNumber(unitsFor(wonLeads))}</strong></div>
+                <div><span>{group.key === 'all' ? 'Conversión total' : 'Conversión del mes'}</span><strong>{formatPercent(groupSummary.won, groupSummary.total)}</strong></div>
               </div>
             </section>
           })}

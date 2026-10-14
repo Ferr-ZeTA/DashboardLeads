@@ -1,4 +1,4 @@
-import { getFeedbackTexts, leadReferenceMonth, OPEN_STATES } from './leads.js'
+import { getFeedbackTexts, leadReferenceDate, leadReferenceMonth, OPEN_STATES } from './leads.js'
 import { toDate } from './dates.js'
 
 export const COUNTRIES = ['Guatemala', 'El Salvador']
@@ -16,6 +16,14 @@ export const monthLabel = (value, style = 'short') => (!value
     .replace(/^./, (letter) => letter.toUpperCase()))
 
 export const qualificationLabel = (value) => (value === 'calificado' ? 'Calificado' : value === 'no_calificado' ? 'No calificado' : 'Sin clasificar')
+const calendarMonths = Array.from({ length: 12 }, (_, index) => index + 1)
+const monthToDayMonths = calendarMonths.map((month) => ({
+  value: month,
+  label: new Intl.DateTimeFormat('es-SV', { month: 'long', timeZone: 'UTC' })
+    .format(new Date(Date.UTC(2020, month - 1, 1)))
+    .replace(/^./, (letter) => letter.toUpperCase()),
+}))
+const monthToDayDays = Array.from({ length: 31 }, (_, index) => index + 1)
 
 /** Unidades reportadas para un lead (estructuradas primero, luego texto del asesor). */
 export function leadUnits(lead) {
@@ -38,11 +46,23 @@ export const FILTER_DEFS = [
   { key: 'filterPais', label: 'País', value: (lead) => lead.pais },
   { key: 'filterEjecutivo', label: 'Asesor / Ejecutivo', value: (lead) => lead.asesor },
   {
-    key: 'filterMes',
-    label: 'Mes',
-    value: (lead) => leadReferenceMonth(lead),
-    display: (value) => monthLabel(value, 'long'),
-    sort: (a, b) => b.localeCompare(a),
+    key: 'filterMonthToDayMonth',
+    label: 'Month to day · Mes',
+    value: (lead) => {
+      const date = toDate(leadReferenceDate(lead))
+      return date ? date.getMonth() + 1 : ''
+    },
+    display: (value) => monthToDayMonths[value - 1]?.label ?? String(value),
+    sort: (a, b) => a - b,
+    options: calendarMonths,
+  },
+  {
+    key: 'filterMonthToDayDay',
+    label: 'Month to day · Día',
+    value: (lead) => toDate(leadReferenceDate(lead))?.getDate() ?? '',
+    display: String,
+    sort: (a, b) => a - b,
+    options: monthToDayDays,
   },
   {
     key: 'filterTipoLead',
