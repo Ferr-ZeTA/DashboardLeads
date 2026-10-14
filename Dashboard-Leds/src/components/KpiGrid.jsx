@@ -18,7 +18,7 @@ export function KpiGrid({ summary, compact = false }) {
     <Kpi icon={Users} accent="#2a78d6" label="Total leads" value={formatNumber(summary.total)} detail={`${formatNumber(summary.qualified)} calificados · ${formatNumber(summary.unqualified)} no calificados`} />
     <Kpi icon={CheckCircle2} accent="#1baf7a" label="Leads radicados" value={formatNumber(summary.won)} detail={`${formatNumber(summary.open)} leads aún abiertos`} />
     <Kpi icon={Package} accent="#eb6834" label="Total unidades vendidas" value={formatNumber(summary.units)} detail="Σ unidades en leads radicados" />
-    <Kpi icon={Boxes} accent="#6250d6" label="Unidades promedio por cierre" value={summary.won ? summary.avgUnits.toFixed(1) : '—'} detail={summary.won ? `${formatNumber(summary.units)} unidades / ${formatNumber(summary.won)} cierres` : 'Sin cierres con éxito'} />
+    <Kpi icon={Boxes} accent="#6250d6" label="Unidades promedio por cierre" value={summary.won ? formatNumber(Math.round(summary.avgUnits)) : '—'} detail={summary.won ? `${formatNumber(summary.units)} unidades / ${formatNumber(summary.won)} cierres` : 'Sin cierres con éxito'} />
     <Kpi icon={Gauge} accent="#008300" label="Tasa de conversión" value={formatPercent(summary.won, summary.total)} detail={`Cerrados con éxito / total · ${formatPercent(summary.won, summary.qualified)} sobre calificados`} />
   </section>
 }

@@ -2,11 +2,10 @@ import { useMemo, useState } from 'react'
 import { FiltersContext } from './filtersContext.js'
 
 const EMPTY_FILTERS = {
-  filterMes: null,
   filterPais: null,
   filterEjecutivo: null,
+  filterMes: null,
   filterTipoLead: null,
-  filterCalificacion: null,
 }
 
 export function FiltersProvider({ children }) {

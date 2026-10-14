@@ -99,7 +99,7 @@ function FilterBar({ leads, filters, filteredCount }) {
   return <div className="filter-bar">
     <div className="mx-auto flex max-w-[1440px] flex-wrap items-center gap-2 px-4 py-2.5 sm:px-6">
       <span className="hidden items-center gap-1.5 pr-1 text-xs font-semibold text-muted lg:flex"><SlidersHorizontal size={14} />Filtros</span>
-      <div className="grid w-full min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 lg:w-auto lg:flex-1 lg:grid-cols-5">
+      <div className="grid w-full min-w-0 grid-cols-2 gap-2 sm:grid-cols-2 lg:w-auto lg:flex-1 lg:grid-cols-4">
         {FILTER_DEFS.map((def) => <MultiSelect key={def.key} def={def} leads={leads} filters={filters} />)}
       </div>
       <div className="ml-auto flex items-center gap-2">
@@ -185,7 +185,7 @@ function DashboardContent() {
       </div>}
       <footer className="flex flex-wrap justify-between gap-2 border-t border-line pt-4 text-xs text-muted">
         <span>© 2026 RED · Dashboard de Leads</span>
-        <span>{demo ? 'Modo demostración · datos ficticios' : 'Actualización automática cada 5 minutos'}</span>
+        <span>{demo ? 'Modo demostración · datos ficticios' : 'Actualización automática cada 2 horas'}</span>
       </footer>
     </main>
   </div>

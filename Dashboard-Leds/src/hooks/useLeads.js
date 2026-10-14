@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { fetchLeads } from '../services/api.js'
 
-const REFRESH_INTERVAL_MS = 5 * 60 * 1000
+const REFRESH_INTERVAL_MS = 2 * 60 * 60 * 1000
 
 export function useLeads({ enabled = true } = {}) {
   const [leads, setLeads] = useState([])

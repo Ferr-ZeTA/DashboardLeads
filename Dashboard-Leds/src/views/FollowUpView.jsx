@@ -1,10 +1,10 @@
 import { useMemo, useState } from 'react'
 import { AlarmClock, CalendarClock, CalendarDays, Info, TrendingUp } from 'lucide-react'
 import { KpiGrid } from '../components/KpiGrid.jsx'
+import { LeadDetailModal } from '../components/LeadDetailModal.jsx'
 import { FollowUpDate, LeadName, LeadTable } from '../components/LeadTable.jsx'
 import { Badge, Card, CountryTag, DataTable } from '../components/ui.jsx'
 import { buildForecast, classifyFollowUps, CLOSING_KEYWORDS, formatNumber } from '../utils/analytics.js'
-import { MailReport } from './MailReport.jsx'
 
 const BUCKETS = [
   { key: 'overdue', label: 'Seguimientos vencidos', hint: 'Fecha agendada < hoy', icon: AlarmClock, tone: 'bad' },
@@ -17,6 +17,7 @@ export function FollowUpView({ leads, summary }) {
   const followUps = useMemo(() => classifyFollowUps(leads), [leads])
   const [bucket, setBucket] = useState(() => (followUps.overdue.length ? 'overdue' : 'today'))
   const [horizon, setHorizon] = useState(30)
+  const [selectedLead, setSelectedLead] = useState(null)
   const forecast = useMemo(() => buildForecast(leads, horizon), [leads, horizon])
   const active = BUCKETS.find((item) => item.key === bucket)
 
@@ -56,9 +57,8 @@ export function FollowUpView({ leads, summary }) {
         {HORIZONS.map((days) => <button key={days} type="button" aria-pressed={horizon === days} onClick={() => setHorizon(days)}>{days} d</button>)}
       </div>}
     >
-      <div className="mb-4 grid gap-3 lg:grid-cols-[repeat(3,minmax(0,1fr))_minmax(0,2fr)]">
+      <div className="mb-4 grid gap-3 lg:grid-cols-[repeat(2,minmax(0,1fr))_minmax(0,2fr)]">
         <ForecastStat label="Casos en forecast" value={formatNumber(forecast.items.length)} />
-        <ForecastStat label="Unidades proyectadas" value={formatNumber(forecast.units)} accent />
         <ForecastStat label="Ejecutivos con forecast" value={formatNumber(new Set(forecast.items.map((item) => item.lead.asesor)).size)} />
         <div className="rounded-xl border border-line bg-subtle/60 p-3 text-xs text-muted">
           <p className="mb-1.5 flex items-center gap-1.5 font-semibold text-ink"><Info size={13} />Criterio de inclusión</p>
@@ -70,21 +70,22 @@ export function FollowUpView({ leads, summary }) {
         </div>
       </div>
       <DataTable
-        headers={['Lead', 'Ejecutivo', 'Próx. seguimiento', 'Señal de cierre', 'Comentario', { label: 'Unidades', numeric: true }]}
+        headers={['Lead', 'Ejecutivo', 'Próx. seguimiento', 'Señal de cierre', 'Comentario', { label: 'Unidades', numeric: true }, 'Detalle']}
         empty={forecast.items.length ? null : 'Ningún caso cumple el criterio de forecast con los filtros actuales.'}
       >
         {forecast.items.map(({ lead, signal, units }) => <tr key={lead.id}>
-          <td><LeadName lead={lead} /></td>
+          <td><button type="button" className="lead-detail-trigger" onClick={() => setSelectedLead(lead)} aria-label={`Abrir detalle de ${lead.clientName ?? `Lead ${lead.id}`}`}><LeadName lead={lead} /></button></td>
           <td><span className="flex items-center gap-2 whitespace-nowrap"><CountryTag country={lead.pais} />{lead.asesor}</span></td>
           <td><FollowUpDate lead={lead} /></td>
           <td>{signal ? <Badge tone="good">{signal.label}</Badge> : <Badge>Marcado por ejecutivo</Badge>}</td>
           <td><span className="line-clamp-2 max-w-[22rem] text-muted" title={signal?.comment}>{signal?.comment ?? '—'}</span></td>
           <td className="num font-semibold text-ink">{units ? formatNumber(units) : '—'}</td>
+          <td><button type="button" className="lead-view-detail" onClick={() => setSelectedLead(lead)}>Ver detalle</button></td>
         </tr>)}
       </DataTable>
     </Card>
 
-    <MailReport leads={leads} followUps={followUps} forecast={forecast} horizon={horizon} />
+    {selectedLead && <LeadDetailModal lead={selectedLead} onClose={() => setSelectedLead(null)} />}
   </div>
 }
 

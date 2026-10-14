@@ -17,20 +17,10 @@ export const monthLabel = (value, style = 'short') => (!value
 
 export const qualificationLabel = (value) => (value === 'calificado' ? 'Calificado' : value === 'no_calificado' ? 'No calificado' : 'Sin clasificar')
 
-// "Tipo de lead" = canal u origen del lead. El API actual no siempre lo expone, por eso
-// se intenta con los campos conocidos y, en su defecto, con el rubro del cliente.
-const ORIGIN_FIELDS = ['canal', 'tipo_origen', 'origen', 'source', 'lead_source', 'fuente', 'rubro']
-export function leadOrigin(lead) {
-  for (const field of ORIGIN_FIELDS) {
-    const value = lead.raw?.[field]
-    if (typeof value === 'string' && value.trim()) return value.trim()
-  }
-  return 'Sin especificar'
-}
-
 /** Unidades reportadas para un lead (estructuradas primero, luego texto del asesor). */
 export function leadUnits(lead) {
-  return lead.cantidadEquipos ?? lead.radiosVendidosReportadas ?? lead.cantidadEquiposEnComentario ?? 0
+  const units = lead.cantidadEquipos ?? lead.radiosVendidosReportadas ?? lead.cantidadEquiposEnComentario ?? 0
+  return Number.isFinite(units) ? Math.round(units) : 0
 }
 
 export function leadComments(lead) {
@@ -43,11 +33,23 @@ export const isQualified = (lead) => lead.tipoLead === 'calificado'
 export const isOpen = (lead) => OPEN_STATES.includes(lead.estado)
 
 export const FILTER_DEFS = [
-  { key: 'filterMes', label: 'Mes', value: (lead) => monthValue(lead.fechaCreacion), display: (value) => monthLabel(value, 'long'), sort: (a, b) => b.localeCompare(a) },
   { key: 'filterPais', label: 'País', value: (lead) => lead.pais },
   { key: 'filterEjecutivo', label: 'Asesor / Ejecutivo', value: (lead) => lead.asesor },
-  { key: 'filterTipoLead', label: 'Tipo de lead', value: leadOrigin },
-  { key: 'filterCalificacion', label: 'Calificación', value: (lead) => lead.tipoLead ?? 'sin_clasificar', display: qualificationLabel },
+  {
+    key: 'filterMes',
+    label: 'Mes',
+    value: (lead) => monthValue(lead.fechaCreacion),
+    display: (value) => monthLabel(value, 'long'),
+    sort: (a, b) => b.localeCompare(a),
+  },
+  {
+    key: 'filterTipoLead',
+    label: 'Tipo de lead',
+    value: (lead) => lead.tipoLead || 'sin_clasificar',
+    display: qualificationLabel,
+    sort: (a, b) => ['calificado', 'no_calificado', 'sin_clasificar'].indexOf(a)
+      - ['calificado', 'no_calificado', 'sin_clasificar'].indexOf(b),
+  },
 ]
 
 export function applyFilters(leads, filters, skipKey) {
@@ -187,7 +189,11 @@ export function buildForecast(leads, horizonDays = 30, now = new Date()) {
 
 // ---------- Etapas ----------
 
-export const FUNNEL_COLORS = ['#184f95', '#2a78d6', '#6da7ec']
+export const FUNNEL_COLORS = [
+  'linear-gradient(115deg, #1d4ed8 0%, #38bdf8 100%)',
+  'linear-gradient(115deg, #0891b2 0%, #2dd4bf 100%)',
+  'linear-gradient(115deg, #16a34a 0%, #84cc16 100%)',
+]
 
 export const PIPELINE_STAGES = ['Asignación', 'Reunión', 'Demo', 'Envío de propuesta', 'Seguimiento', 'Cierre']
 

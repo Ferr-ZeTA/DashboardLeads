@@ -3,8 +3,10 @@ import { AlertTriangle, ChevronRight } from 'lucide-react'
 import { AdvisorDrawer } from '../components/AdvisorDrawer.jsx'
 import { Funnel, Legend, Meter, MonthlyComboChart, PairedBars } from '../components/charts.jsx'
 import { KpiGrid } from '../components/KpiGrid.jsx'
+import { MonthDetailModal } from '../components/MonthDetailModal.jsx'
 import { Badge, Card, CountryTag, DataTable, EmptyState } from '../components/ui.jsx'
-import { byAdvisor, byCountry, byCountryMonth, byMonth, COUNTRY_CODE, FUNNEL_COLORS, formatNumber, formatPercent, monthLabel } from '../utils/analytics.js'
+import { byAdvisor, byCountry, byMonth, COUNTRIES, COUNTRY_CODE, formatNumber, formatPercent, leadUnits, monthLabel, summarize } from '../utils/analytics.js'
+import { monthValue } from '../utils/dates.js'
 
 const SERIES = [
   { key: 'total', label: 'Total leads', color: '#2a78d6' },
@@ -35,7 +37,7 @@ function RegionalComparison({ countries }) {
       {countries.map((row) => <div key={row.country} className="rounded-xl border border-line bg-subtle/60 p-3">
         <div className="flex items-center gap-2 text-xs font-medium text-muted"><CountryTag country={row.country} />{row.country}</div>
         <strong className="mt-2 block text-2xl font-semibold tracking-tight text-ink tabular-nums">{formatPercent(row.won, row.total)}</strong>
-        <small className="text-xs text-muted">conversión · {row.won ? row.avgUnits.toFixed(1) : '—'} u/cierre</small>
+        <small className="text-xs text-muted">conversión · {row.won ? formatNumber(Math.round(row.avgUnits)) : '—'} u/cierre</small>
       </div>)}
     </div>
     <div className="grid gap-3">
@@ -56,13 +58,41 @@ function RegionalComparison({ countries }) {
 
 export function AnalyticsView({ leads, summary }) {
   const [selectedAdvisor, setSelectedAdvisor] = useState(null)
+  const [selectedMonthDetail, setSelectedMonthDetail] = useState(null)
+  const [selectedMonth, setSelectedMonth] = useState(null)
   const months = useMemo(() => byMonth(leads), [leads])
   const advisors = useMemo(() => byAdvisor(leads), [leads])
+  const advisorsByCountry = useMemo(() => COUNTRIES.map((country) => {
+    const countryLeads = leads.filter((lead) => lead.pais === country)
+    return {
+      country,
+      summary: summarize(countryLeads),
+      advisors: byAdvisor(countryLeads).sort((left, right) => right.total - left.total || left.name.localeCompare(right.name)),
+    }
+  }).filter((group) => group.advisors.length), [leads])
   const countries = useMemo(() => byCountry(leads), [leads])
-  const countryMonths = useMemo(() => byCountryMonth(leads), [leads])
-  const ranking = useMemo(() => [...advisors].sort((a, b) => b.units - a.units || b.won - a.won || b.total - a.total), [advisors])
+  const activeMonth = months.some((row) => row.month === selectedMonth)
+    ? selectedMonth
+    : null
+  const monthlyLeads = useMemo(
+    () => activeMonth ? leads.filter((lead) => monthValue(lead.fechaCreacion) === activeMonth) : leads,
+    [activeMonth, leads],
+  )
+  const monthlySummary = useMemo(() => summarize(monthlyLeads), [monthlyLeads])
+  const monthlyCountryTables = useMemo(() => COUNTRIES.map((country) => {
+    const countryLeads = leads.filter((lead) => lead.pais === country)
+    const countryMonths = byMonth(countryLeads).map((month) => {
+      const monthLeads = countryLeads.filter((lead) => monthValue(lead.fechaCreacion) === month.month)
+      return { ...month, leads: monthLeads }
+    })
+    const countrySummary = summarize(countryLeads)
+    return { country, months: countryMonths, summary: countrySummary }
+  }), [leads])
+  const unitsFor = (rows) => rows.reduce((totalUnits, lead) => totalUnits + leadUnits(lead), 0)
   const topRadicados = useMemo(() => [...advisors].sort((a, b) => b.won - a.won || b.total - a.total).slice(0, 10), [advisors])
-  const funnelDetail = useMemo(() => [...advisors].sort((a, b) => b.total - a.total), [advisors])
+  const openAdvisor = (name, country, sourceLeads = leads, month = null) => {
+    setSelectedAdvisor({ name, country, leads: sourceLeads, month })
+  }
 
   return <div className="view-enter grid gap-4">
     <KpiGrid summary={summary} />
@@ -76,81 +106,130 @@ export function AnalyticsView({ leads, summary }) {
       </Card>
     </div>
 
-    <div className="grid gap-4 xl:grid-cols-5">
-      <Card className="xl:col-span-3" title="Top asesores" subtitle="Ranking por unidades vendidas. Haz clic en un ejecutivo para ver su embudo, forecast y seguimientos.">
-        <DataTable
-          headers={['#', 'Ejecutivo', { label: 'Leads', numeric: true }, { label: 'Radicados', numeric: true }, { label: 'Unidades', numeric: true }, { label: 'Conversión', numeric: true }, '']}
-          empty={ranking.length ? null : 'No hay asesores en la selección.'}
-        >
-          {ranking.slice(0, 10).map((row, index) => <tr key={row.name} className="cursor-pointer" onClick={() => setSelectedAdvisor(row.name)}>
-            <td className="w-8 text-muted tabular-nums">{index + 1}</td>
-            <td><span className="flex items-center gap-2 font-medium text-ink"><CountryTag country={row.country} />{row.name}</span></td>
-            <td className="num">{formatNumber(row.total)}</td>
-            <td className="num">{formatNumber(row.won)}</td>
-            <td className="num font-semibold text-ink">{formatNumber(row.units)}</td>
-            <td className="num"><ConversionPill won={row.won} total={row.total} /></td>
-            <td className="w-6 text-muted"><ChevronRight size={15} /></td>
-          </tr>)}
-        </DataTable>
-      </Card>
-      <Card className="xl:col-span-2" title="Top radicados" subtitle="Total leads vs. leads radicados por ejecutivo" action={<Legend items={[SERIES[0], SERIES[1]]} />}>
+    <div className="grid gap-4">
+      <Card title="Top radicados" subtitle="Total leads vs. leads radicados por ejecutivo" action={<Legend items={[SERIES[0], SERIES[1]]} />}>
         {topRadicados.length
-          ? <PairedBars rows={topRadicados} primary={SERIES[0]} secondary={SERIES[1]} onSelect={setSelectedAdvisor} selected={selectedAdvisor} />
+        ? <PairedBars rows={topRadicados} primary={SERIES[0]} secondary={SERIES[1]} onSelect={(name) => openAdvisor(name, advisors.find((row) => row.name === name)?.country)} selected={selectedAdvisor?.name} />
           : <EmptyState title="Sin datos" />}
       </Card>
     </div>
 
-    <Card title="Embudo de conversión" subtitle="Total leads ➔ Calificados ➔ Radicados" action={<ClosingRuleNote />}>
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,2fr)_minmax(0,3fr)]">
-        <div className="self-center">
+    <Card className="monthly-funnel-card" title="Embudo de conversión por mes" subtitle="Consulta el avance de leads por etapa en el periodo seleccionado." action={<ClosingRuleNote />}>
+      {months.length > 0 && <div className="month-selector mb-5" role="group" aria-label="Seleccionar mes del embudo">
+        <button
+          type="button"
+          aria-pressed={activeMonth === null}
+          className={`month-selector-option ${activeMonth === null ? 'is-active' : ''}`}
+          onClick={() => setSelectedMonth(null)}
+        >Todos</button>
+        {months.map((row) => <button
+        key={row.month}
+        type="button"
+        aria-pressed={row.month === activeMonth}
+        className={`month-selector-option ${row.month === activeMonth ? 'is-active' : ''}`}
+        onClick={() => setSelectedMonth(row.month)}
+        >{monthLabel(row.month, 'long')}</button>)}
+      </div>}
+      {months.length
+        ? <div className="grid gap-6">
+        <section className="monthly-funnel-section">
+          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold text-ink">{activeMonth ? monthLabel(activeMonth, 'long') : 'Todos'}</h3>
+            <span className="text-xs text-muted">{formatNumber(monthlySummary.total)} leads</span>
+          </div>
           <Funnel stages={[
-            { label: 'Total leads', value: summary.total },
-            { label: 'Calificados', value: summary.qualified },
-            { label: 'Radicados', value: summary.won },
+            { label: 'Total leads', value: monthlySummary.total },
+            { label: 'Leads calificados', value: monthlySummary.qualified },
+            { label: 'Leads radicados', value: monthlySummary.won },
           ]} />
+          <div className="monthly-funnel-results" aria-label="Resultados de leads radicados">
+            <div><span>Leads radicados</span><strong>{formatNumber(monthlySummary.won)}</strong></div>
+            <div><span>Unidades radicadas</span><strong>{formatNumber(unitsFor(monthlyLeads.filter((lead) => lead.estado === 'ganado')))}</strong></div>
+          </div>
+        </section>
         </div>
-        <div>
-          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted">Leads asignados por etapa y ejecutivo</h3>
-          <DataTable
-            className="max-h-80"
-            headers={['Ejecutivo', { label: 'Total', numeric: true }, { label: 'Calificados', numeric: true }, { label: 'Radicados', numeric: true }, { label: 'Conv.', numeric: true }]}
-            empty={funnelDetail.length ? null : 'Sin datos.'}
-          >
-            {funnelDetail.map((row) => <tr key={row.name} className="cursor-pointer" onClick={() => setSelectedAdvisor(row.name)}>
-              <td className="font-medium text-ink">{row.name}</td>
-              {['total', 'qualified', 'won'].map((key, index) => <td key={key} className="num">
-                <span className="inline-flex items-center gap-1.5"><i className="h-2 w-2 rounded-full" style={{ background: FUNNEL_COLORS[index] }} />{formatNumber(row[key])}</span>
-              </td>)}
-              <td className="num"><ConversionPill won={row.won} total={row.total} /></td>
-            </tr>)}
-          </DataTable>
-        </div>
-      </div>
+        : <EmptyState title="Sin meses con datos" body="Ajusta los filtros para consultar un embudo mensual." />}
     </Card>
 
-    <Card title="Resumen del embudo por país y mes" subtitle="Desglose mensual de las etapas del embudo para GT y SV">
-      <DataTable
-        headers={['Mes', { label: 'Total leads', numeric: true }, { label: 'Calificados', numeric: true }, { label: 'No calificados', numeric: true }, { label: 'Radicados', numeric: true }, { label: 'Conversión', numeric: true }, { label: 'Unid. prom.', numeric: true }, { label: 'Unidades', numeric: true }]}
-        empty={countryMonths.length ? null : 'No hay datos mensuales por país.'}
+    <div className="grid gap-4">
+      <Card title="Resumen por asesor (agrupado por país)" subtitle="Selecciona un ejecutivo para consultar sus leads, etapas y forecast con los filtros actuales.">
+        <DataTable
+          headers={['País', 'Asesor', { label: 'Total leads', numeric: true }, { label: 'Calificados', numeric: true }, { label: 'No calificados', numeric: true }, { label: 'Radicados', numeric: true }, { label: 'Conversión', numeric: true }, { label: 'Unidades promedio', numeric: true }, { label: 'Unidades totales', numeric: true }]}
+          empty={advisorsByCountry.length ? null : 'No hay asesores en la selección.'}
+        >
+          {advisorsByCountry.map((group) => <Fragment key={group.country}>
+            <tr className="group-row">
+              <td colSpan={9}>
+                <span className="flex flex-wrap items-center gap-2">
+                  <CountryTag country={group.country} />
+                  <strong>{group.country}</strong>
+                  <span className="text-muted">{group.advisors.length} asesores · {formatNumber(group.summary.total)} leads · {formatNumber(group.summary.won)} radicados</span>
+                </span>
+              </td>
+            </tr>
+            {group.advisors.map((row) => <tr key={`${group.country}-${row.name}`}>
+              <td><CountryTag country={group.country} /></td>
+              <td>
+                <button type="button" className="inline-flex items-center gap-1 rounded-md text-left font-medium text-ink hover:text-accent focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent" onClick={() => openAdvisor(row.name, group.country)}>
+                  {row.name}<ChevronRight size={14} className="text-muted" />
+                </button>
+              </td>
+              <td className="num">{formatNumber(row.total)}</td>
+              <td className="num">{formatNumber(row.qualified)}</td>
+              <td className="num">{formatNumber(row.unqualified)}</td>
+              <td className="num">{formatNumber(row.won)}</td>
+              <td className="num"><ConversionPill won={row.won} total={row.total} /></td>
+              <td className="num">{row.won ? formatNumber(Math.round(row.avgUnits)) : '—'}</td>
+              <td className="num font-semibold text-ink">{formatNumber(row.units)}</td>
+            </tr>)}
+          </Fragment>)}
+        </DataTable>
+      </Card>
+    </div>
+
+    <div className="grid gap-4">
+      {monthlyCountryTables.map((group) => <Card
+        key={group.country}
+        title={`Resumen mensual · ${group.country}`}
+        subtitle={`${group.months.length} meses · ${formatNumber(group.summary.total)} leads · ${formatNumber(group.summary.won)} radicados`}
+        action={<CountryTag country={group.country} />}
       >
-        {countryMonths.map((group) => <Fragment key={group.country}>
-          <tr className="group-row">
-            <td colSpan={8}><span className="flex items-center gap-2"><CountryTag country={group.country} /><b>{group.country}</b><span className="text-muted">· {formatNumber(group.total.total)} leads · {formatNumber(group.total.won)} radicados · {formatPercent(group.total.won, group.total.total)}</span></span></td>
-          </tr>
-          {group.months.map((row) => <tr key={row.month}>
-            <td>{monthLabel(row.month, 'long')}</td>
+        <DataTable
+          className="month-summary-table"
+          headers={['Mes', { label: 'Total leads', numeric: true }, { label: 'Calificados', numeric: true }, { label: 'No calificados', numeric: true }, { label: 'Radicados', numeric: true }, { label: 'Conversión', numeric: true }, { label: 'Unidades promedio', numeric: true }, { label: 'Unidades totales', numeric: true }]}
+          empty={group.months.length ? null : `No hay leads de ${group.country} con los filtros actuales.`}
+        >
+          {group.months.map((row) => <tr key={`${group.country}-${row.month}`}>
+            <td><button
+              type="button"
+              className="month-detail-trigger"
+              onClick={() => setSelectedMonthDetail({ country: group.country, month: row.month, leads: row.leads })}
+              aria-label={`Ver detalle de ${monthLabel(row.month, 'long')} en ${group.country}`}
+            >{monthLabel(row.month, 'long')}<ChevronRight size={14} /></button></td>
             <td className="num">{formatNumber(row.total)}</td>
             <td className="num">{formatNumber(row.qualified)}</td>
             <td className="num">{formatNumber(row.unqualified)}</td>
             <td className="num">{formatNumber(row.won)}</td>
             <td className="num"><ConversionPill won={row.won} total={row.total} /></td>
-            <td className="num">{row.won ? row.avgUnits.toFixed(1) : '—'}</td>
+            <td className="num">{row.won ? formatNumber(Math.round(row.avgUnits)) : '—'}</td>
             <td className="num">{formatNumber(row.units)}</td>
           </tr>)}
-        </Fragment>)}
-      </DataTable>
-    </Card>
+        </DataTable>
+      </Card>)}
+    </div>
 
-    {selectedAdvisor && <AdvisorDrawer name={selectedAdvisor} leads={leads} onClose={() => setSelectedAdvisor(null)} />}
+    {selectedAdvisor && <AdvisorDrawer
+      name={selectedAdvisor.name}
+      country={selectedAdvisor.country}
+      leads={selectedAdvisor.leads}
+      month={selectedAdvisor.month}
+      onClose={() => setSelectedAdvisor(null)}
+    />}
+    {selectedMonthDetail && <MonthDetailModal
+      month={selectedMonthDetail.month}
+      country={selectedMonthDetail.country}
+      leads={selectedMonthDetail.leads}
+      onClose={() => setSelectedMonthDetail(null)}
+    />}
   </div>
 }

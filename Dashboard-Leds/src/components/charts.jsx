@@ -98,7 +98,7 @@ export function Funnel({ stages, compact = false }) {
   const top = Math.max(1, stages[0]?.value ?? 1)
   return <div className={`grid ${compact ? 'gap-1.5' : 'gap-2'}`}>
     {stages.map((stage, index) => {
-      const width = Math.max(stage.value ? 14 : 6, (stage.value / top) * 100)
+      const width = Math.max(100 - index * 16, Math.sqrt(stage.value / top) * 100)
       const previous = stages[index - 1]
       return <div key={stage.label}>
         {previous && <div className="flex justify-center py-0.5 text-[11px] text-muted">
@@ -107,10 +107,10 @@ export function Funnel({ stages, compact = false }) {
         <div className="flex justify-center">
           <div
             className={`funnel-band ${compact ? 'h-9' : 'h-12'}`}
-            style={{ width: `${width}%`, background: FUNNEL_COLORS[index] ?? FUNNEL_COLORS.at(-1), color: index >= 2 ? '#0b2547' : '#fff' }}
+            style={{ width: `${width}%`, background: FUNNEL_COLORS[index] ?? FUNNEL_COLORS.at(-1) }}
             title={`${stage.label}: ${formatNumber(stage.value)}`}
           >
-            <span className="truncate">{stage.label}</span>
+            <span>{stage.label}</span>
             <b className="tabular-nums">{formatNumber(stage.value)}</b>
           </div>
         </div>
