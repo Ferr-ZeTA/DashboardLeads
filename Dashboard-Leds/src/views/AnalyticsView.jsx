@@ -1,5 +1,5 @@
 import { Fragment, useMemo, useState } from 'react'
-import { AlertTriangle, ChevronRight } from 'lucide-react'
+import { ChevronRight } from 'lucide-react'
 import { AdvisorDrawer } from '../components/AdvisorDrawer.jsx'
 import { Funnel, Legend, Meter, MonthlyComboChart, PairedBars } from '../components/charts.jsx'
 import { KpiGrid } from '../components/KpiGrid.jsx'
@@ -17,12 +17,6 @@ const SERIES = [
 function ConversionPill({ won, total }) {
   const value = total ? won / total : 0
   return <Badge tone={value >= 0.1 ? 'good' : value > 0 ? 'warn' : 'neutral'}>{formatPercent(won, total)}</Badge>
-}
-
-function ClosingRuleNote() {
-  return <span className="inline-flex items-center gap-1.5 rounded-full border border-warn/30 bg-warn-soft px-2.5 py-1 text-[11px] font-medium text-warn" title="Regla actual: Radicado = Cierre con éxito. Pendiente de validar con el área comercial.">
-    <AlertTriangle size={12} /> Radicados = Cierre con éxito · pendiente de cuadrar
-  </span>
 }
 
 function RegionalComparison({ countries }) {
@@ -115,7 +109,7 @@ export function AnalyticsView({ leads, summary, showAllFunnel }) {
 
     <Card className="monthly-funnel-card" title="Embudo de conversión por mes" subtitle={showAllFunnel
       ? 'Se muestran todos los meses y el total general.'
-      : 'Se muestran únicamente los meses que contienen leads con los filtros activos.'} action={<ClosingRuleNote />}>
+      : 'Se muestran únicamente los meses que contienen leads con los filtros activos.'}>
       {months.length
         ? <div className="monthly-funnel-grid">
           {monthlyFunnelGroups.map((group) => {
