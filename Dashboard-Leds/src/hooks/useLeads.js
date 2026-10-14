@@ -3,7 +3,7 @@ import { fetchLeads } from '../services/api.js'
 
 const REFRESH_INTERVAL_MS = 5 * 60 * 1000
 
-export function useLeads() {
+export function useLeads({ enabled = true } = {}) {
   const [leads, setLeads] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
@@ -32,6 +32,7 @@ export function useLeads() {
   }, [])
 
   useEffect(() => {
+    if (!enabled) return undefined
     const controller = new AbortController()
     queueMicrotask(() => void reload(controller.signal))
 
@@ -51,7 +52,7 @@ export function useLeads() {
       window.removeEventListener('focus', refreshIfStale)
       controller.abort()
     }
-  }, [reload])
+  }, [reload, enabled])
 
   return { leads, loading, error, lastUpdated, reload: () => reload() }
 }

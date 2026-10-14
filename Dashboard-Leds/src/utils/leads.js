@@ -314,7 +314,7 @@ function meetingLossReason(row) {
   return lossReason(row.stage_feedback_json?.['6']?.motivo_no_contacto)
 }
 
-function getFeedbackTexts(row, currentStageOnly = false) {
+export function getFeedbackTexts(row, currentStageOnly = false) {
   const texts = []
   if (!currentStageOnly && typeof row.advisor_feedback === 'string' && row.advisor_feedback.trim()) {
     texts.push(row.advisor_feedback.trim())
