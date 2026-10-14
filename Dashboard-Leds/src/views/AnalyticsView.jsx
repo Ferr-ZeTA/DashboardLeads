@@ -56,10 +56,9 @@ function RegionalComparison({ countries }) {
   </div>
 }
 
-export function AnalyticsView({ leads, summary }) {
+export function AnalyticsView({ leads, summary, showAllFunnel }) {
   const [selectedAdvisor, setSelectedAdvisor] = useState(null)
   const [selectedMonthDetail, setSelectedMonthDetail] = useState(null)
-  const [selectedMonth, setSelectedMonth] = useState(null)
   const months = useMemo(() => byMonth(leads), [leads])
   const advisors = useMemo(() => byAdvisor(leads), [leads])
   const advisorsByCountry = useMemo(() => COUNTRIES.map((country) => {
@@ -71,14 +70,14 @@ export function AnalyticsView({ leads, summary }) {
     }
   }).filter((group) => group.advisors.length), [leads])
   const countries = useMemo(() => byCountry(leads), [leads])
-  const activeMonth = months.some((row) => row.month === selectedMonth)
-    ? selectedMonth
-    : null
-  const monthlyLeads = useMemo(
-    () => activeMonth ? leads.filter((lead) => leadReferenceMonth(lead) === activeMonth) : leads,
-    [activeMonth, leads],
-  )
-  const monthlySummary = useMemo(() => summarize(monthlyLeads), [monthlyLeads])
+  const monthlyFunnelGroups = useMemo(() => [
+    ...(showAllFunnel ? [{ key: 'all', label: 'Todos', leads }] : []),
+    ...months.map(({ month }) => ({
+      key: month,
+      label: monthLabel(month, 'long'),
+      leads: leads.filter((lead) => leadReferenceMonth(lead) === month),
+    })),
+  ], [leads, months, showAllFunnel])
   const monthlyCountryTables = useMemo(() => COUNTRIES.map((country) => {
     const countryLeads = leads.filter((lead) => lead.pais === country)
     const countryMonths = byMonth(countryLeads).map((month) => {
@@ -114,39 +113,30 @@ export function AnalyticsView({ leads, summary }) {
       </Card>
     </div>
 
-    <Card className="monthly-funnel-card" title="Embudo de conversión por mes" subtitle="Consulta el avance de leads por etapa en el periodo seleccionado." action={<ClosingRuleNote />}>
-      {months.length > 0 && <div className="month-selector mb-5" role="group" aria-label="Seleccionar mes del embudo">
-        <button
-          type="button"
-          aria-pressed={activeMonth === null}
-          className={`month-selector-option ${activeMonth === null ? 'is-active' : ''}`}
-          onClick={() => setSelectedMonth(null)}
-        >Todos</button>
-        {months.map((row) => <button
-        key={row.month}
-        type="button"
-        aria-pressed={row.month === activeMonth}
-        className={`month-selector-option ${row.month === activeMonth ? 'is-active' : ''}`}
-        onClick={() => setSelectedMonth(row.month)}
-        >{monthLabel(row.month, 'long')}</button>)}
-      </div>}
+    <Card className="monthly-funnel-card" title="Embudo de conversión por mes" subtitle={showAllFunnel
+      ? 'Se muestran todos los meses y el total general.'
+      : 'Se muestran únicamente los meses que contienen leads con los filtros activos.'} action={<ClosingRuleNote />}>
       {months.length
-        ? <div className="grid gap-6">
-        <section className="monthly-funnel-section">
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-            <h3 className="text-sm font-semibold text-ink">{activeMonth ? monthLabel(activeMonth, 'long') : 'Todos'}</h3>
-            <span className="text-xs text-muted">{formatNumber(monthlySummary.total)} leads</span>
-          </div>
-          <Funnel stages={[
-            { label: 'Total leads', value: monthlySummary.total },
-            { label: 'Leads calificados', value: monthlySummary.qualified },
-            { label: 'Leads radicados', value: monthlySummary.won },
-          ]} />
-          <div className="monthly-funnel-results" aria-label="Resultados de leads radicados">
-            <div><span>Leads radicados</span><strong>{formatNumber(monthlySummary.won)}</strong></div>
-            <div><span>Unidades radicadas</span><strong>{formatNumber(unitsFor(monthlyLeads.filter((lead) => lead.estado === 'ganado')))}</strong></div>
-          </div>
-        </section>
+        ? <div className="monthly-funnel-grid">
+          {monthlyFunnelGroups.map((group) => {
+            const groupSummary = summarize(group.leads)
+            const wonLeads = group.leads.filter((lead) => lead.estado === 'ganado')
+            return <section className="monthly-funnel-section" key={group.key}>
+              <div className="monthly-funnel-heading">
+                <h3>{group.label}</h3>
+                <span>{formatNumber(groupSummary.total)} leads</span>
+              </div>
+              <Funnel stages={[
+                { label: 'Total leads', value: groupSummary.total },
+                { label: 'Leads calificados', value: groupSummary.qualified },
+                { label: 'Leads radicados', value: groupSummary.won },
+              ]} />
+              <div className="monthly-funnel-results" aria-label={`Resultados de ${group.label}`}>
+                <div><span>Radicados</span><strong>{formatNumber(groupSummary.won)}</strong></div>
+                <div><span>Unidades</span><strong>{formatNumber(unitsFor(wonLeads))}</strong></div>
+              </div>
+            </section>
+          })}
         </div>
         : <EmptyState title="Sin meses con datos" body="Ajusta los filtros para consultar un embudo mensual." />}
     </Card>

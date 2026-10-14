@@ -178,7 +178,7 @@ function DashboardContent() {
       {error && <ErrorBanner message={error} onRetry={api.reload} onDemo={enableDemo} />}
       {loading && !leads.length && <LoadingState />}
       {leads.length > 0 && (tab === 'analytics'
-        ? <AnalyticsView key="analytics" leads={filtered} summary={summary} />
+        ? <AnalyticsView key="analytics" leads={filtered} summary={summary} showAllFunnel={FILTER_DEFS.every((def) => filters[def.key] == null)} />
         : <FollowUpView key="followups" leads={filtered} summary={summary} />)}
       {!loading && !error && !leads.length && <div className="card grid place-items-center gap-1 py-12 text-center text-sm text-muted">
         <Users size={22} /><strong className="text-ink">La API no devolvió leads.</strong><span>Revisa la conexión e inténtalo de nuevo.</span>
