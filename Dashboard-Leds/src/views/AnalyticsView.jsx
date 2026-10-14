@@ -6,7 +6,7 @@ import { KpiGrid } from '../components/KpiGrid.jsx'
 import { MonthDetailModal } from '../components/MonthDetailModal.jsx'
 import { Badge, Card, CountryTag, DataTable, EmptyState } from '../components/ui.jsx'
 import { byAdvisor, byCountry, byMonth, COUNTRIES, COUNTRY_CODE, formatNumber, formatPercent, leadUnits, monthLabel, summarize } from '../utils/analytics.js'
-import { monthValue } from '../utils/dates.js'
+import { leadReferenceMonth } from '../utils/leads.js'
 
 const SERIES = [
   { key: 'total', label: 'Total leads', color: '#2a78d6' },
@@ -75,14 +75,14 @@ export function AnalyticsView({ leads, summary }) {
     ? selectedMonth
     : null
   const monthlyLeads = useMemo(
-    () => activeMonth ? leads.filter((lead) => monthValue(lead.fechaCreacion) === activeMonth) : leads,
+    () => activeMonth ? leads.filter((lead) => leadReferenceMonth(lead) === activeMonth) : leads,
     [activeMonth, leads],
   )
   const monthlySummary = useMemo(() => summarize(monthlyLeads), [monthlyLeads])
   const monthlyCountryTables = useMemo(() => COUNTRIES.map((country) => {
     const countryLeads = leads.filter((lead) => lead.pais === country)
     const countryMonths = byMonth(countryLeads).map((month) => {
-      const monthLeads = countryLeads.filter((lead) => monthValue(lead.fechaCreacion) === month.month)
+      const monthLeads = countryLeads.filter((lead) => leadReferenceMonth(lead) === month.month)
       return { ...month, leads: monthLeads }
     })
     const countrySummary = summarize(countryLeads)
@@ -98,7 +98,7 @@ export function AnalyticsView({ leads, summary }) {
     <KpiGrid summary={summary} />
 
     <div className="grid gap-4 xl:grid-cols-3">
-      <Card className="xl:col-span-2" title="Leads y unidades por mes" subtitle="Agrupado por fecha de creación del lead. Pasa el cursor sobre un mes para ver el detalle." action={<Legend items={SERIES} />}>
+      <Card className="xl:col-span-2" title="Leads y unidades por mes" subtitle="Los cierres exitosos se agrupan por fecha de cierre; el resto, por fecha de creación." action={<Legend items={SERIES} />}>
         {months.length ? <MonthlyComboChart rows={months} series={SERIES} /> : <EmptyState title="Sin meses con datos" body="Ajusta los filtros para ver la evolución mensual." />}
       </Card>
       <Card title="Comparativa regional" subtitle="Guatemala vs. El Salvador">

@@ -55,6 +55,7 @@ export function LeadDetailModal({ lead, onClose }) {
         <section className="lead-detail-section">
           <h3><CalendarClock size={16} /> Fechas y seguimiento</h3>
           <DetailItem label="Creado" value={formatDate(lead.fechaCreacion)} />
+          {isWon(lead) && <DetailItem label="Cierre exitoso" value={formatDate(lead.fechaCierreExitoso)} />}
           <DetailItem label="Próxima gestión" value={formatDate(lead.proximaGestion)} />
           <DetailItem label="Fecha de reunión" value={formatDate(lead.fechaReunion)} />
           <DetailItem label="Fecha estimada de forecast" value={formatDate(lead.fcFecha)} />

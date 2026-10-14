@@ -3,6 +3,16 @@ import { isOverdue, monthValue } from './dates.js'
 
 export const OPEN_STATES = ['activo', 'en_espera', 'detenido']
 
+export function leadReferenceDate(lead) {
+  return lead.estado === 'ganado' && lead.fechaCierreExitoso
+    ? lead.fechaCierreExitoso
+    : lead.fechaCreacion
+}
+
+export function leadReferenceMonth(lead) {
+  return monthValue(leadReferenceDate(lead))
+}
+
 export const API_STAGE_LABELS = [
   'Asignación',
   'Reunión',
@@ -60,7 +70,7 @@ export function resumenBase(leads, filters) {
   return leads.filter((lead) => {
     if (!matchesFilter(filters.filterEjecutivo, lead.asesor)) return false
     if (!matchesFilter(filters.filterPais, lead.pais)) return false
-    if (!matchesFilter(filters.filterMes, monthValue(lead.fechaCreacion))) return false
+    if (!matchesFilter(filters.filterMes, leadReferenceMonth(lead))) return false
     if (!matchesFilter(filters.filterTipoLead, lead.tipoLead)) return false
     if (!matchesFilter(filters.filterEstado, lead.estado)) return false
     return true
@@ -209,6 +219,7 @@ export function parseLead(value, index) {
     tipoLead: value.tipoLead,
     motivo: value.motivo ?? undefined,
     fechaCreacion: optionalDate('fechaCreacion'),
+    fechaCierreExitoso: optionalDate('fechaCierreExitoso'),
     proximaGestion: optionalDate('proximaGestion'),
     fechaSeguimiento: optionalDate('fechaSeguimiento'),
     comentarioGestion: value.comentarioGestion?.trim() || undefined,
@@ -383,6 +394,17 @@ function normalizeDateOnly(value) {
   return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`
 }
 
+function validOptionalDate(value) {
+  if ((typeof value !== 'string' && typeof value !== 'number') || value === '') return undefined
+  if (typeof value === 'string') {
+    const normalized = normalizeDateOnly(value)
+    if (normalized) return normalized
+    if (/^\d{4}-\d{2}-\d{2}$/.test(value) || /^\d{1,2}\/\d{1,2}\/\d{4}$/.test(value)) return undefined
+  }
+  const date = new Date(value)
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString()
+}
+
 function meetingFeedback(row) {
   const stages = row.stage_feedback_json
   const stage = stages && typeof stages === 'object' && !Array.isArray(stages) ? stages['2'] : undefined
@@ -487,6 +509,9 @@ export function mapMeetingLead(row, index) {
         ? row.calificado ? 'calificado' : 'no_calificado'
         : undefined,
     fechaCreacion: row.created_at,
+    fechaCierreExitoso: estado === 'ganado'
+      ? validOptionalDate(row.stage_feedback_json?.['6']?.fecha_cierre_real)
+      : undefined,
     motivo: estado === 'perdido' ? meetingLossReason(row) : undefined,
     proximaGestion: directDate ?? management?.date,
     fechaSeguimiento: normalizeDateOnly(row.stage_feedback_json?.['5']?.fecha_seguimiento),

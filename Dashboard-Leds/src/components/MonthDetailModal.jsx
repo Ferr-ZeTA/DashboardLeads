@@ -50,7 +50,7 @@ export function MonthDetailModal({ month, country, leads, onClose }) {
             <h2 className="mt-1 flex flex-wrap items-center gap-2 text-xl font-semibold tracking-tight text-ink">
               {monthLabel(month, 'long')} <CountryTag country={country} /> <span className="text-muted">{country}</span>
             </h2>
-            <p className="mt-1 text-xs text-muted">Datos de leads creados durante este mes. El detalle no incluye forecast.</p>
+            <p className="mt-1 text-xs text-muted">Cierres exitosos por fecha de cierre; los demás leads por fecha de creación. El detalle no incluye forecast.</p>
           </div>
           <button type="button" className="btn btn-ghost !p-2" onClick={onClose} aria-label="Cerrar detalle del mes"><X size={18} /></button>
         </header>

@@ -6,7 +6,7 @@ import { Funnel, Meter } from './charts.jsx'
 import { LeadTable } from './LeadTable.jsx'
 import { CountryTag } from './ui.jsx'
 import { LeadDetailModal } from './LeadDetailModal.jsx'
-import { monthValue } from '../utils/dates.js'
+import { leadReferenceMonth } from '../utils/leads.js'
 
 export function AdvisorDrawer({ name, country, leads, month, onClose }) {
   const [selectedLead, setSelectedLead] = useState(null)
@@ -24,9 +24,9 @@ export function AdvisorDrawer({ name, country, leads, month, onClose }) {
   }, [onClose, selectedLead])
 
   const advisorLeads = leads.filter((lead) => lead.asesor === name && (!country || lead.pais === country))
-  const availableMonths = [...new Set(advisorLeads.map((lead) => monthValue(lead.fechaCreacion)).filter(Boolean))].sort((a, b) => b.localeCompare(a))
+  const availableMonths = [...new Set(advisorLeads.map(leadReferenceMonth).filter(Boolean))].sort((a, b) => b.localeCompare(a))
   const own = advisorLeads.filter((lead) =>
-    (!selectedMonth || monthValue(lead.fechaCreacion) === selectedMonth)
+    (!selectedMonth || leadReferenceMonth(lead) === selectedMonth)
     && (!selectedType || (lead.tipoLead ?? 'sin_clasificar') === selectedType),
   )
   const summary = summarize(own)

@@ -1,5 +1,5 @@
-import { getFeedbackTexts, OPEN_STATES } from './leads.js'
-import { monthValue, toDate } from './dates.js'
+import { getFeedbackTexts, leadReferenceMonth, OPEN_STATES } from './leads.js'
+import { toDate } from './dates.js'
 
 export const COUNTRIES = ['Guatemala', 'El Salvador']
 export const COUNTRY_CODE = { Guatemala: 'GT', 'El Salvador': 'SV' }
@@ -40,7 +40,7 @@ export const FILTER_DEFS = [
   {
     key: 'filterMes',
     label: 'Mes',
-    value: (lead) => monthValue(lead.fechaCreacion),
+    value: (lead) => leadReferenceMonth(lead),
     display: (value) => monthLabel(value, 'long'),
     sort: (a, b) => b.localeCompare(a),
   },
@@ -90,7 +90,7 @@ function groupBy(leads, keyOf) {
 }
 
 export function byMonth(leads) {
-  return [...groupBy(leads, (lead) => monthValue(lead.fechaCreacion) || '').entries()]
+  return [...groupBy(leads, (lead) => leadReferenceMonth(lead) || '').entries()]
     .filter(([month]) => month)
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([month, rows]) => ({ month, ...summarize(rows) }))
