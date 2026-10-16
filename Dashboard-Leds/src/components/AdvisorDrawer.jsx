@@ -74,7 +74,6 @@ export function AdvisorDrawer({ name, country, leads, month, onClose }) {
               <option value="">Todos</option>
               <option value="calificado">Calificado</option>
               <option value="no_calificado">No calificado</option>
-              <option value="sin_clasificar">Sin clasificar</option>
             </select>
           </label>
         </div>
