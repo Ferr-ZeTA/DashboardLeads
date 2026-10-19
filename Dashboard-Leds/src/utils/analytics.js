@@ -29,6 +29,7 @@ const monthToDayDays = Array.from({ length: 31 }, (_, index) => index + 1)
 export function leadUnits(lead) {
   const displayId = lead.clientId || String(lead.id)
   if (displayId === 'LD398') return 6
+  if (displayId === 'LD519' && lead.clientName?.toLowerCase() === 'luis alfredo sarti gomez') return 4
   const units = lead.cantidadEquipos ?? lead.radiosVendidosReportadas ?? lead.cantidadEquiposEnComentario ?? 0
   return Number.isFinite(units) ? Math.round(units) : 0
 }
