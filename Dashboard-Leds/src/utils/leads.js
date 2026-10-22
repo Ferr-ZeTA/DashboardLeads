@@ -490,7 +490,6 @@ export function mapMeetingLead(row, index) {
   const apiStageLabel = typeof row.opportunity_stage_label === 'string'
     ? row.opportunity_stage_label.trim()
     : API_STAGE_LABELS[Number(row.opportunity_stage) - 1] ?? ''
-
   return parseLead({
     id: row.id,
     asesor: row.asesor ?? row.advisor_name,
