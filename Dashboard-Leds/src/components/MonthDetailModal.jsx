@@ -93,7 +93,7 @@ export function MonthDetailModal({ month, country, leads, onClose }) {
             <LeadTable
               className="month-detail-table"
               leads={[...leads].sort((a, b) => String(a.clientName ?? leadDisplayId(a)).localeCompare(String(b.clientName ?? leadDisplayId(b))))}
-              columns={['lead', 'asesor', 'etapa', 'estado', 'calificacion', 'unidadesRadicadas', 'detalle']}
+              columns={['lead', 'asesor', 'etapa', 'estado', 'calificacion', 'fechaCierre', 'unidadesRadicadas', 'detalle']}
               onLeadClick={setSelectedLead}
             />
           </section>

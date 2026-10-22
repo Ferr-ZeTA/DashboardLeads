@@ -1,6 +1,7 @@
 import { Eye } from 'lucide-react'
 import { leadDisplayId } from '../utils/leads.js'
 import { daysFromToday, followUpDate, formatNumber, isWon, leadComments, leadUnits, PIPELINE_STAGES, qualificationLabel } from '../utils/analytics.js'
+import { formatDate } from '../utils/dates.js'
 import { Badge, CountryTag, DataTable, StateBadge } from './ui.jsx'
 
 const dateTime = new Intl.DateTimeFormat('es-SV', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
@@ -36,6 +37,7 @@ const COLUMNS = (onLeadClick) => ({
   etapa: { label: 'Etapa', render: (lead) => <span className="whitespace-nowrap">{PIPELINE_STAGES[lead.apiStage - 1] ?? '—'}</span> },
   estado: { label: 'Estado', render: (lead) => <StateBadge state={lead.estado} /> },
   calificacion: { label: 'Calificación', render: (lead) => <Badge tone={lead.tipoLead === 'calificado' ? 'info' : 'neutral'}>{qualificationLabel(lead.tipoLead)}</Badge> },
+  fechaCierre: { label: 'Fecha de cierre', render: (lead) => isWon(lead) ? formatDate(lead.fechaCierreExitoso) : '—' },
   fecha: { label: 'Fecha agendada', render: (lead, tone) => <FollowUpDate lead={lead} tone={tone} /> },
   comentario: { label: 'Último comentario', render: (lead) => <span className="line-clamp-2 max-w-[22rem] text-muted" title={leadComments(lead)[0]}>{leadComments(lead)[0] ?? '—'}</span> },
   unidades: { label: 'Unidades', numeric: true, render: (lead) => (leadUnits(lead) ? formatNumber(leadUnits(lead)) : '—') },
