@@ -1,4 +1,4 @@
-import { getFeedbackTexts, leadReferenceDate, leadReferenceMonth, OPEN_STATES } from './leads.js'
+import { getFeedbackTexts, leadReferenceDate, leadReferenceMonth, lossReasonLabel, OPEN_STATES } from './leads.js'
 import { toDate } from './dates.js'
 
 export const COUNTRIES = ['Guatemala', 'El Salvador']
@@ -119,6 +119,14 @@ export function byMonth(leads) {
 export function byAdvisor(leads) {
   return [...groupBy(leads, (lead) => lead.asesor).entries()]
     .map(([name, rows]) => ({ name, country: mostCommon(rows.map((lead) => lead.pais)), leads: rows, ...summarize(rows) }))
+}
+
+export function lossBreakdown(leads) {
+  const lost = leads.filter((lead) => lead.estado === 'perdido')
+  const byReason = [...groupBy(lost, (lead) => lead.motivo || 'sin_motivo').entries()]
+    .map(([reason, rows]) => ({ reason, label: lossReasonLabel(reason), count: rows.length, leads: rows }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label))
+  return { total: lost.length, byReason, leads: lost }
 }
 
 export function byCountry(leads) {

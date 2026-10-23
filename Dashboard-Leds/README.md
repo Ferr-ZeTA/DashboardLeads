@@ -24,6 +24,7 @@ La API se vuelve a consultar cada dos horas mientras el dashboard está abierto 
 - El resumen por asesor está agrupado por país e incluye leads totales, calificados, no calificados, radicados, conversión sobre total, promedio de unidades por radicado y unidades de leads radicados. Al seleccionar un ejecutivo, el panel ofrece métricas compactas, seguimientos priorizados, etapas, forecast y filtros propios de mes y tipo de lead.
 - Desde las tablas de seguimientos y forecast se puede abrir el detalle individual de cada lead, incluyendo estado, etapa actual, fechas, comentarios y unidades radicadas cuando corresponda. Los filtros de mes del ejecutivo usan la misma fecha de referencia que el dashboard.
 - En la Vista 2 se puede abrir el detalle de cada lead del forecast.
+- Al final de la Vista 2, “Casos de pérdida” distribuye los leads perdidos por motivo, resume los casos por ejecutivo y muestra el detalle de cada lead con acceso a su ficha completa. Todo respeta los filtros globales activos.
 - Los checks de consistencia se calculan con el conjunto filtrado. `status` conserva autoridad si contradice `resultado_venta`.
 
 La API pagina con `offset` de 50 registros. El servicio sigue solicitando páginas hasta recibir una página incompleta y rechaza identificadores duplicados. La credencial debe configurarse como `RED_API_KEY` en las variables de entorno del despliegue.
